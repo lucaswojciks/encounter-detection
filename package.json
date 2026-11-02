@@ -1,0 +1,24 @@
+{
+  "name": "encounter-detection",
+  "version": "0.1.0",
+  "description": "CLI for detecting geographic encounters between monitored individuals from timestamped location records.",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "encounter-detection": "dist/src/cli.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && tsc",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/src/cli.js",
+    "test": "npm run build && node --test \"dist/test/**/*.test.js\""
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "^7.0.2"
+  }
+}

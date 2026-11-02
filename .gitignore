@@ -134,3 +134,18 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Claude Code instructions
+CLAUDE.md
+
+# Datasets (large input/output files are not versioned; small official
+# samples used as test fixtures belong in test/fixtures/)
+data/
+
+# Temporary files
+tmp/
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
