@@ -1,6 +1,6 @@
 # Tarefas 004 — Saída e validação
 
-- **Status:** Em execução.
+- **Status:** Todas as tarefas concluídas em 2026-11-02; implementação em revisão.
 - **Spec:** [`spec.md`](spec.md) · **Plano:** [`plan.md`](plan.md)
 
 Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
@@ -9,7 +9,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T01 — Escritor incremental e atômico
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** `writeJsonArray` (plano, seção 2).
 - **Arquivos:** `src/output/json-writer.ts`, `test/output/json-writer.test.ts`.
@@ -23,7 +23,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T02 — Processamento de um dataset
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** `processDataset` (plano, seção 1), com estatísticas e `AbortSignal`.
 - **Arquivos:** `src/process-dataset.ts`, `test/process-dataset.test.ts`.
@@ -37,7 +37,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T03 — Argumentos da CLI
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** `parseArguments` com `util.parseArgs` (plano, seção 3).
 - **Arquivos:** `src/cli/arguments.ts`, `test/cli/arguments.test.ts`.
@@ -48,7 +48,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T04 — CLI
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** `src/cli.ts` com resumo, mensagens de erro, códigos de saída e
   `SIGINT`.
@@ -61,7 +61,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T05 — Validador de outputs
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** VAL-02 (plano, seção 4).
 - **Arquivos:** `src/output/validate-output.ts`, `scripts/validate-output.ts`,
@@ -76,21 +76,21 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T06 — Amostragem na comparação de estratégias
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** opção `--every <k>` em `scripts/compare-strategies.ts` (VAL-03).
 - **Dependências:** nenhuma.
 
 ## T07 — Datasets 6 e 7
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** download em streaming com verificação de tamanho (plano, seção 6).
 - **Critérios de conclusão:** tamanho igual ao `Content-Length`; arquivos em `data/`.
 
 ## T08 — Geração e validação dos sete outputs
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** CA-10 e CA-11.
 - **Critérios de conclusão:** CLI com `spatialHash` nos datasets 1 a 7; validador com
@@ -101,7 +101,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T09 — Documentação
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** atualizar spec, plano, tarefas e `specs/README.md`.
 - **Dependências:** T01–T08.

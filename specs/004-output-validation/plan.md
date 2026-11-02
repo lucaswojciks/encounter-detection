@@ -1,6 +1,6 @@
 # Plano técnico 004 — Saída e validação
 
-- **Status:** Em implementação
+- **Status:** Implementado (em revisão)
 - **Spec:** [`spec.md`](spec.md)
 
 ## 1. Arquitetura
@@ -150,3 +150,88 @@ Para que seja testável, a lógica do validador fica em `src/output/validate-out
   caso o erro é reportado e o temporário removido.
 - Uma interrupção forçada (`SIGKILL`, queda de energia) não executa a limpeza: o
   temporário pode sobrar, mas o destino continua sem conteúdo parcial.
+
+## 9. Resultados
+
+Executado em 2026-11-02 com Node.js 24.19.0, Windows 11 Pro, AMD Ryzen 5 5600X,
+16 GB de RAM e SSD, a partir do build de produção (`npm run build`).
+
+### 9.1 Download dos datasets 6 e 7
+
+| Arquivo | Bytes recebidos | `Content-Length` | Situação |
+| ------- | --------------: | ---------------: | -------- |
+| `data/dataset6.txt` | 423 411 895 | 423 411 895 | completo |
+| `data/dataset7.txt` | 638 210 371 | 638 210 371 | completo |
+
+### 9.2 Outputs (CLI com `spatialHash`)
+
+```
+node dist/src/cli.js data/datasetN.txt      # → outputs/encontros-datasetN.json
+```
+
+Tempo e memória de 4 execuções por dataset (a de geração e mais 3 repetições):
+**mediana [mínimo–máximo]**, com a mediana sendo a média dos dois valores centrais. A duração vai do início da leitura até a publicação do
+arquivo; a memória é o RSS máximo do processo.
+
+| Dataset | Registros | Timestamps | Encontros | `generico` | `faccao` | `protetiva` | Duração (s) | RSS máximo (MiB) | Output (bytes) |
+| ------- | --------: | ---------: | --------: | ---------: | -------: | ----------: | ----------- | ---------------- | -------------: |
+| 1 | 5 000 | 500 | 4 | 2 | 1 | 1 | 0,021 [0,020–0,021] | 46,8 [46,8–48,1] | 1 344 |
+| 2 | 25 000 | 1 250 | 6 | 3 | 2 | 1 | 0,057 [0,056–0,057] | 55,0 [54,8–55,0] | 2 029 |
+| 3 | 100 000 | 2 500 | 10 | 5 | 3 | 2 | 0,155 [0,154–0,165] | 56,0 [55,9–58,9] | 3 393 |
+| 4 | 400 020 | 6 667 | 15 | 7 | 5 | 3 | 0,531 [0,525–0,533] | 63,3 [63,2–63,5] | 5 090 |
+| 5 | 1 000 000 | 12 500 | 21 | 10 | 7 | 4 | 1,266 [1,240–1,294] | 80,0 [79,7–80,0] | 7 132 |
+| 6 | 8 000 000 | 80 000 | 27 | 12 | 9 | 6 | 10,183 [10,150–10,285] | 106,9 [106,7–107,1] | 9 171 |
+| 7 | 12 000 000 | 100 000 | 35 | 15 | 12 | 8 | 15,417 [15,360–16,194] | 160,8 [160,5–160,9] | 11 908 |
+
+- As contagens de registros e timestamps dos datasets 6 e 7 (8 e 12 milhões; 80 000 e
+  100 000) agora vêm de execução e confirmam as estimativas da análise.
+- **Memória:** o heap retido após `gc()` (`measure-encounters --expose-gc`) é de 5,2 MiB
+  no dataset 6 e 5,3 MiB no 7, o mesmo dos datasets menores (spec 003). O RSS e o pico
+  de heap maiores (até 56 MiB no dataset 7) vêm de o V8 adiar a coleta do lixo
+  temporário em execuções longas. Não há acúmulo.
+- **Tempo:** nos datasets 6 e 7, a detecção leva 2,7 e 4,2 s e a leitura com o parsing
+  leva 7,8 e 12,0 s (`measure-encounters`, mesma sessão). A leitura domina o tempo.
+- Os outputs somam 40 067 bytes.
+
+### 9.3 Gabaritos (VAL-01)
+
+`outputs/encontros-dataset1.json` e `outputs/encontros-dataset2.json` são idênticos
+byte a byte (`cmp`) a `respostas1.json` (1 344 bytes) e `respostas2.json` (2 029 bytes),
+o que inclui quantidade, tipos, ids, timestamps, coordenadas, distâncias e estrutura.
+
+### 9.4 Validador independente (VAL-02)
+
+```
+node dist/scripts/validate-output.js outputs/encontros-datasetN.json --dataset data/datasetN.txt
+```
+
+Para os sete outputs: JSON válido, 0 violações, com as contagens por tipo da tabela
+9.2. O validador conferiu:
+- campos, ordem das chaves e tipos JavaScript;
+- tipos válidos e ids crescentes;
+- distância `< 20` e igual bit a bit à recalculada;
+- unicidade de (par, timestamp) e ordenação;
+- posições e classificação conferidas contra os registros do dataset.
+
+### 9.5 Equivalência entre estratégias (VAL-03)
+
+| Verificação | Dataset 6 | Dataset 7 |
+| ----------- | --------- | --------- |
+| Amostra `--every 100` | 801 grupos, 0 divergências | 1 001 grupos, 0 divergências |
+| Arquivo completo `--every 1` | 80 000 grupos, 0 divergências, 27 encontros | 100 000 grupos, 0 divergências, 35 encontros |
+| CLI com `--search all` × `--search spatial` | arquivos idênticos byte a byte | arquivos idênticos byte a byte |
+
+- A amostra determinística **não continha nenhum encontro** (0 nos grupos comparados),
+  porque os encontros são raros. Ela confirma apenas a ausência de falsos positivos
+  nesses grupos. A completude é garantida pela comparação do arquivo inteiro, que se
+  mostrou viável: cerca de 74 s para os dois datasets juntos.
+- Os datasets 1 a 5 também foram comparados por completo, com 0 divergências.
+- Duração da CLI com `allPairs`: 24,3 s (dataset 6) e 40,7 s (dataset 7), contra cerca
+  de 10,2 e 15,4 s com `spatialHash` (2,4× e 2,6× no tempo total; uma execução de
+  `allPairs` por dataset).
+
+### 9.6 Versionamento dos outputs (D2)
+
+Os sete outputs somam 40 kB e o maior tem 11,9 kB. O tamanho não impede versioná-los.
+Eles continuam fora do Git (`outputs/` no `.gitignore`), disponíveis localmente; a
+inclusão no repositório fica para a revisão final.

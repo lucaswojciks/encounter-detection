@@ -1,6 +1,6 @@
 # Spec 004 — Saída e validação
 
-- **Status:** Em implementação
+- **Status:** Implementada (em revisão)
 - **Depende de:** specs [001](../001-dataset-processing/spec.md),
   [002](../002-encounter-detection/spec.md) e [003](../003-spatial-optimization/spec.md)
 - **Documentos relacionados:** [`plan.md`](plan.md), [`tasks.md`](tasks.md)
