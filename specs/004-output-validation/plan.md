@@ -1,6 +1,6 @@
 # Plano técnico 004 — Saída e validação
 
-- **Status:** Implementado (em revisão)
+- **Status:** Implementado
 - **Spec:** [`spec.md`](spec.md)
 
 ## 1. Arquitetura
