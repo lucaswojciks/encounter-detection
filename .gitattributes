@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Official reference data: keep bytes exactly as published
+test/fixtures/official/** -text
