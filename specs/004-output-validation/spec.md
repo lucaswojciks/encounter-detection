@@ -62,6 +62,10 @@ encounter-detection --help
   diretório do destino. Só depois do processamento completo e do fechamento do
   arquivo o temporário é renomeado para o nome final. Em caso de erro ou interrupção,
   o temporário é removido, e um arquivo final preexistente permanece intacto.
+- **OUT-07 Entrada preservada.** Se o destino for o próprio dataset de entrada
+  (inclusive por outro caminho para o mesmo arquivo), o processamento é recusado com
+  erro e o dataset permanece intacto. A publicação atômica substituiria o arquivo de
+  entrada.
 
 ## 5. Validação dos outputs
 
@@ -105,5 +109,5 @@ encounter-detection --help
 | ID | Questão | Decisão |
 | -- | ------- | ------- |
 | D1 | Nome padrão do output | `outputs/encontros-<dataset>.json` (ex.: `outputs/encontros-dataset1.json`). |
-| D2 | Versionamento dos outputs | `outputs/` fica fora do Git por padrão. A decisão de versionar depende do tamanho medido (plano, resultados). |
+| D2 | Versionamento dos outputs | Os sete outputs finais (`outputs/encontros-*.json`, 40 kB) são versionados como parte da entrega, marcados como `-text` para preservar os bytes; outros arquivos em `outputs/` são ignorados. |
 | D3 | Estratégia padrão | `spatialHash`, conforme o benchmark da spec 003. |

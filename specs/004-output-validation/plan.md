@@ -232,6 +232,7 @@ Para os sete outputs: JSON válido, 0 violações, com as contagens por tipo da 
 
 ### 9.6 Versionamento dos outputs (D2)
 
-Os sete outputs somam 40 kB e o maior tem 11,9 kB. O tamanho não impede versioná-los.
-Eles continuam fora do Git (`outputs/` no `.gitignore`), disponíveis localmente; a
-inclusão no repositório fica para a revisão final.
+Os sete outputs somam 40 kB e o maior tem 11,9 kB. Na revisão final, eles passaram a ser
+versionados como parte da entrega. O `.gitignore` admite apenas `outputs/encontros-*.json`,
+e o `.gitattributes` os marca como `-text`, para que o checkout não converta as quebras de
+linha e eles continuem idênticos aos gabaritos.

@@ -391,7 +391,7 @@ node dist/scripts/compare-strategies.js data/dataset7.txt
 npm test
 ```
 
-O comando compila o projeto e executa os 150 testes com `node:test`. Eles cobrem:
+O comando compila o projeto e executa os 151 testes com `node:test`. Eles cobrem:
 
 - **Parsing e agrupamento:** cada campo aceito e rejeitado, CRLF, BOM, linhas vazias, ordem
   cronológica, contrapressão e mensagens de erro.
