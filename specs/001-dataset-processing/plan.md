@@ -1,6 +1,6 @@
 # Plano técnico 001 — Processamento de datasets
 
-- **Status:** Implementado (em revisão)
+- **Status:** Implementado
 - **Spec:** [`spec.md`](spec.md)
 
 Alternativas de desempenho são apenas candidatas. Qualquer troca depende de
