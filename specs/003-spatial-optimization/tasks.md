@@ -1,6 +1,6 @@
 # Tarefas 003 — Otimização espacial
 
-- **Status:** Em execução.
+- **Status:** Todas as tarefas concluídas em 2026-11-02; implementação em revisão.
 - **Spec:** [`spec.md`](spec.md) · **Plano:** [`plan.md`](plan.md)
 
 Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
@@ -9,7 +9,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T01 — Dimensões da grade
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** calcular `h`, `w(Φ)`, `C` e `W` (plano, seção 2).
 - **Arquivos:** `src/encounters/spatial-hash.ts`, `test/encounters/spatial-hash.test.ts`.
@@ -21,7 +21,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T02 — Estratégia `spatialHash`
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** implementar a indexação por grupo e a visita das 9 células
   (plano, seção 5).
@@ -32,7 +32,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T03 — Testes com casos construídos
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** CA-03 com posições escolhidas.
 - **Arquivos:** `test/encounters/spatial-hash.test.ts`.
@@ -44,7 +44,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T04 — Testes de propriedade
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** CA-04 em grupos aleatórios reprodutíveis.
 - **Arquivos:** `test/encounters/spatial-hash.test.ts`.
@@ -56,7 +56,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T05 — Aceitação com os datasets oficiais
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** CA-01 e CA-02 (datasets 1 e 2) com `spatialHash`.
 - **Arquivos:** `test/encounters/official-encounters.test.ts`.
@@ -66,7 +66,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T06 — Comparação nos datasets 3 a 5
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** CA-02 para os datasets sem gabarito.
 - **Arquivos:** `scripts/compare-strategies.ts`.
@@ -77,7 +77,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T07 — Instrumentação do benchmark
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** permitir medir as duas estratégias nas mesmas condições (plano,
   seção 9).
@@ -89,7 +89,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T08 — Benchmarks
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** CA-05 e CA-06.
 - **Arquivos:** `plan.md` (resultados).
@@ -100,7 +100,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T09 — Documentação
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** atualizar spec, plano, tarefas e `specs/README.md` com os resultados.
 - **Dependências:** T01–T08.

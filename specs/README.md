@@ -19,7 +19,7 @@ specs/
 | --- | ---------------------------- | ----------- |
 | 001 | `001-dataset-processing/`    | Implemented |
 | 002 | `002-encounter-detection/`   | Implemented |
-| 003 | `003-spatial-optimization/`  | In progress |
+| 003 | `003-spatial-optimization/`  | Implemented (in review) |
 | 004 | `004-output-validation/`     | Not started |
 
 Feature directories are created when their `spec.md` is written.

@@ -1,6 +1,6 @@
 # Plano técnico 003 — Otimização espacial
 
-- **Status:** Em implementação
+- **Status:** Implementado (em revisão)
 - **Spec:** [`spec.md`](spec.md)
 
 ## 1. Visão geral
@@ -212,3 +212,98 @@ Para um grupo com `n` registros e `k` pares candidatos:
   benchmark dos datasets 1 e 2 mostra esse efeito.
 - A garantia depende de `haversineDistance` respeitar as desigualdades 3.1 e 3.2
   dentro da margem; uma mudança na fórmula exige rever a seção 3.
+
+## 11. Resultados
+
+Executado em 2026-11-02 com Node.js 24.19.0, Windows 11 Pro, AMD Ryzen 5 5600X,
+16 GB de RAM e SSD, a partir do build de produção.
+
+### 11.1 Equivalência
+
+| Verificação | Resultado |
+| ----------- | --------- |
+| Testes automatizados (`npm test`) | 113 testes, todos passando |
+| Gabaritos com `spatialHash` (datasets 1 e 2) | 4/4 e 6/6 idênticos, distâncias bit a bit, texto JSON igual ao arquivo oficial |
+| `compare-strategies` nos datasets 1 a 5 | 0 grupos divergentes em 500, 1 250, 2 500, 6 667 e 12 500 grupos (4, 6, 10, 15 e 21 encontros) |
+| Propriedade com 400 grupos aleatórios (semente fixa) | Encontros iguais, todos os pares < 20 m visitados, sem visitas repetidas, ordem de `allPairs` |
+| Mutantes (alteração temporária do código) | Os testes falham com: largura de coluna do equador em todas as latitudes (4 falhas), sem volta no antimeridiano (1), só a própria célula (7), sem ordenação dos candidatos (6), sem o filtro `j > i` (10) e linhas com metade da altura (7) |
+
+```
+node dist/scripts/compare-strategies.js data/dataset1.txt … data/dataset5.txt
+```
+
+### 11.2 Candidatos e cálculos de Haversine
+
+Contados com `measure-encounters --count`, numa execução separada da medição de
+tempo:
+
+| Dataset | Haversine com `allPairs` | Haversine com `spatialHash` | Cálculos evitados | Encontros |
+| ------- | -----------------------: | --------------------------: | ----------------: | --------: |
+| 1 | 22 500 | 6 | 22 494 | 4 |
+| 2 | 237 500 | 6 | 237 494 | 6 |
+| 3 | 1 950 000 | 14 | 1 949 986 | 10 |
+| 4 | 11 800 590 | 16 | 11 800 574 | 15 |
+| 5 | 39 500 000 | 22 | 39 499 978 | 21 |
+
+Nos dados oficiais, quase todo candidato é um encontro, porque as pessoas estão
+espalhadas por milhares de quilômetros e só se aproximam nos encontros.
+
+### 11.3 Tempo
+
+5 execuções por dataset e estratégia, cada uma num processo separado, alternando
+leitura, `allPairs` e `spatialHash` em cada rodada. Valores: **mediana [mínimo–máximo]**
+em segundos.
+
+```
+node dist/scripts/measure-dataset.js data/datasetN.txt                       # leitura
+node dist/scripts/measure-encounters.js --search all|spatial data/datasetN.txt
+```
+
+| Dataset | Leitura isolada | Detecção `allPairs` | Detecção `spatialHash` | Total `allPairs` | Total `spatialHash` | Ganho na detecção | Ganho no total |
+| ------- | --------------- | ------------------- | ---------------------- | ---------------- | ------------------- | ----------------- | -------------- |
+| 1 | 0,013 [0,013–0,013] | 0,004 [0,004–0,005] | 0,005 [0,005–0,006] | 0,018 [0,018–0,018] | 0,019 [0,019–0,020] | nenhum | nenhum |
+| 2 | 0,037 [0,036–0,038] | 0,016 [0,016–0,017] | 0,017 [0,016–0,017] | 0,054 [0,053–0,054] | 0,055 [0,054–0,056] | nenhum | nenhum |
+| 3 | 0,110 [0,109–0,110] | 0,089 [0,088–0,090] | 0,044 [0,044–0,047] | 0,198 [0,195–0,202] | 0,153 [0,152–0,157] | 2,0× | 1,29× |
+| 4 | 0,383 [0,381–0,390] | 0,511 [0,508–0,517] | 0,151 [0,150–0,152] | 0,899 [0,896–0,903] | 0,542 [0,538–0,546] | 3,4× | 1,66× |
+| 5 | 0,931 [0,921–0,956] | 1,688 [1,686–1,695] | 0,345 [0,343–0,347] | 2,629 [2,605–2,636] | 1,279 [1,272–1,305] | 4,9× | 2,06× |
+
+- Nos datasets 3, 4 e 5, o **pior** tempo de detecção com `spatialHash` é menor que o
+  **melhor** com `allPairs`, então o ganho é consistente em todas as repetições.
+- Nos datasets 1 e 2 (10 e 20 registros por grupo) não há ganho: o custo de montar o
+  índice equivale ao de calcular 45 ou 190 distâncias.
+- **Causa do ganho limitado a 4,9×**, mesmo com 99,9999 % menos distâncias no dataset
+  5: com `spatialHash`, o custo passa a ser a indexação (um `Map`, listas por célula e
+  9 consultas por registro). São cerca de 0,35 µs por registro, contra 1,7 µs por
+  registro da força bruta com 80 registros por grupo. O ganho cresce com o tamanho do
+  grupo, porque `allPairs` é quadrático e `spatialHash` é linear: 2,0×, 3,4× e 4,9×
+  para 40, 60 e 80 registros.
+- Com `spatialHash`, a leitura (≈0,93 s no dataset 5) passa a dominar o tempo total.
+  Otimizar mais a detecção reduziria no máximo ≈27 % do total do dataset 5. As
+  alternativas das seções 5 e 7 (meia vizinhança, índice sem `Map`) não foram
+  implementadas.
+
+### 11.4 Memória
+
+| Dataset | Estratégia | Pico de heap (mediana) | Heap retido após `gc()` | RSS máximo (mediana) |
+| ------- | ---------- | ---------------------: | ----------------------: | -------------------: |
+| 3 | `allPairs` | 9,6 MiB | 5,1 MiB | 52,0 MiB |
+| 3 | `spatialHash` | 9,4 MiB | 5,1 MiB | 54,4 MiB |
+| 4 | `allPairs` | 11,9 MiB | 5,2 MiB | 60,6 MiB |
+| 4 | `spatialHash` | 12,0 MiB | 5,2 MiB | 61,0 MiB |
+| 5 | `allPairs` | 15,4 MiB | 5,2 MiB | 67,1 MiB |
+| 5 | `spatialHash` | 20,4 MiB | 5,2 MiB | 76,6 MiB |
+
+- O heap **retido** é igual nas duas estratégias: o índice é descartado ao fim de cada
+  grupo (RS-01, I-03).
+- O pico de heap e o RSS maiores no dataset 5 com `spatialHash` vêm do lixo
+  temporário (um `Map` e listas por grupo) acumulado entre coletas. Não crescem com o
+  tamanho do arquivo.
+
+### 11.5 Conclusão
+
+`spatialHash` é equivalente a `allPairs` em todos os testes e datasets e reduz de forma
+consistente o tempo de detecção a partir de 40 registros por grupo. Os datasets 6 e 7
+(100 e 120 registros por grupo) não foram medidos. Pela complexidade, o ganho tende a
+ser maior neles, mas isso não foi verificado. **Recomendação para a spec 004:** usar
+`spatialHash` no processamento, mantendo `allPairs` como referência nos testes.
+`detectEncounters` continua com `allPairs` como padrão (D3) até essa decisão.

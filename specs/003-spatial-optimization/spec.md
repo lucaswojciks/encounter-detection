@@ -1,6 +1,6 @@
 # Spec 003 — Otimização espacial
 
-- **Status:** Em implementação
+- **Status:** Implementada (em revisão)
 - **Depende de:** [Spec 002](../002-encounter-detection/spec.md) (detector de referência e
   interface `PairSearch`)
 - **Documentos relacionados:** [`plan.md`](plan.md), [`tasks.md`](tasks.md)
