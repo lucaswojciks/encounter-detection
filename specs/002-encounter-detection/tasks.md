@@ -1,6 +1,6 @@
 # Tarefas 002 — Detecção de encontros
 
-- **Status:** Todas as tarefas concluídas em 2026-11-02; implementação em revisão.
+- **Status:** Todas as tarefas concluídas em 2026-11-02; integrada à `main`.
 - **Spec:** [`spec.md`](spec.md) · **Plano:** [`plan.md`](plan.md)
 
 Decisões D1 e D3 aprovadas (spec, seção 9).

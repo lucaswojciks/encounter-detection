@@ -18,8 +18,8 @@ specs/
 | ID  | Directory                    | Status      |
 | --- | ---------------------------- | ----------- |
 | 001 | `001-dataset-processing/`    | Implemented |
-| 002 | `002-encounter-detection/`   | Implemented (in review) |
-| 003 | `003-spatial-optimization/`  | Not started |
+| 002 | `002-encounter-detection/`   | Implemented |
+| 003 | `003-spatial-optimization/`  | In progress |
 | 004 | `004-output-validation/`     | Not started |
 
 Feature directories are created when their `spec.md` is written.

@@ -1,6 +1,6 @@
 # Plano técnico 002 — Detecção de encontros
 
-- **Status:** Implementado (em revisão)
+- **Status:** Implementado
 - **Spec:** [`spec.md`](spec.md)
 
 O algoritmo descrito é a **implementação de
