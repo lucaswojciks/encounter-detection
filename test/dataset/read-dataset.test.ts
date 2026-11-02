@@ -63,16 +63,26 @@ describe("readDataset", () => {
     const lines = [HEADER, ...ROWS];
     const expected = await collect(await fileWith("base.txt", lines.join("\n")));
 
+    const bom = String.fromCharCode(0xfeff);
     const variants = {
       "lf-trailing.txt": `${lines.join("\n")}\n`,
       "crlf.txt": lines.join("\r\n"),
       "crlf-trailing.txt": `${lines.join("\r\n")}\r\n`,
-      "bom.txt": `﻿${lines.join("\n")}`,
-      "bom-crlf.txt": `﻿${lines.join("\r\n")}\r\n`,
+      "bom.txt": `${bom}${lines.join("\n")}`,
+      "bom-crlf.txt": `${bom}${lines.join("\r\n")}\r\n`,
     };
     for (const [name, content] of Object.entries(variants)) {
       assert.deepEqual(await collect(await fileWith(name, content)), expected, name);
     }
+  });
+
+  test("a file starting with the UTF-8 BOM bytes EF BB BF is read like one without it", async () => {
+    const lines = [HEADER, ...ROWS].join("\n");
+    const expected = await collect(await fileWith("no-bom.txt", lines));
+    const path = join(directory, "bom-bytes.txt");
+    await writeFile(path, Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(lines, "utf8")]));
+
+    assert.deepEqual(await collect(path), expected);
   });
 
   test("reports the file path and line of an invalid record", async () => {

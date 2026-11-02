@@ -85,7 +85,8 @@ describe("groupByTimestamp", () => {
 
   test("handles CRLF line endings and a BOM", async () => {
     const lf = await collect([HEADER, row(1, T1), row(1, T2)]);
-    const crlf = await collect([`﻿${HEADER}\r`, `${row(1, T1)}\r`, `${row(1, T2)}\r`, "\r"]);
+    const bom = String.fromCharCode(0xfeff);
+    const crlf = await collect([`${bom}${HEADER}\r`, `${row(1, T1)}\r`, `${row(1, T2)}\r`, "\r"]);
 
     assert.deepEqual(crlf, lf);
   });

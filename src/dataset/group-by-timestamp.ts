@@ -2,7 +2,7 @@ import { DatasetError } from "./dataset-error.js";
 import { HEADER, parseRecord } from "./parse-record.js";
 import type { LocationRecord, TimestampGroup } from "./types.js";
 
-const BOM = "﻿";
+const BOM = String.fromCharCode(0xfeff);
 
 /**
  * Validates the header and yields consecutive records that share exactly the
