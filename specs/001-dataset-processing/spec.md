@@ -1,6 +1,7 @@
 # Spec 001 — Processamento de datasets
 
-- **Status:** Implementada
+- **Status:** Implementada; leitura a partir de bytes (seção 12) implementada na
+  branch `perf/optimize-dataset-processing`
 - **Documentos relacionados:** [`plan.md`](plan.md), [`tasks.md`](tasks.md),
   [`dataset-analysis.md`](dataset-analysis.md)
 
@@ -35,7 +36,9 @@ dados válidos.
 ### 4.1 Arquivo
 
 - Texto UTF-8. Um BOM UTF-8 no início, se presente, é ignorado.
-- Quebras de linha `LF` ou `CRLF`.
+- Quebras de linha `LF` ou `CRLF`. Um `CR` isolado também encerra a linha, como no
+  `readline` usado pela primeira implementação; a seção 12 preserva esse
+  comportamento.
 - A última linha pode ou não terminar com quebra de linha.
 - A primeira linha é o cabeçalho, com os sete campos do enunciado:
 
@@ -84,7 +87,8 @@ Notas:
 - **RF-05** O consumidor controla o ritmo: o leitor não avança além do grupo seguinte
   enquanto o consumidor não pede mais grupos.
 - **RF-06** A conversão de registros e o agrupamento são independentes de arquivos:
-  operam sobre linhas de texto e podem ser testados sem disco.
+  operam sobre linhas de texto ou sobre blocos de bytes (seção 12) e podem ser
+  testados sem disco.
 
 ## 6. Erros de entrada
 
@@ -172,3 +176,64 @@ medidos como **diagnóstico** (CA-10).
 | D5 | Arquivos fora de ordem cronológica. | Rejeitados (E-06). |
 | D6 | Linhas vazias. | Ignoradas. |
 | D7 | Limites de memória. | Não definidos; medição diagnóstica (CA-10). |
+| D8 | Leitura a partir de bytes (seção 12). | Adotada em `readDataset`; a leitura com `readline` continua disponível como referência (`readDatasetLines`). |
+
+## 12. Leitura a partir de bytes
+
+### 12.1 Motivo
+
+O profiling dos datasets 6 e 7 mostrou que leitura, parsing e agrupamento ocupavam
+cerca de 70 % do tempo total com `spatialHash`. No dataset 7 eram ≈11,2 s de
+≈15,5 s. O custo vinha de criar, para cada uma das 12 milhões de linhas, uma
+string, um array de 7 campos, 4 testes de expressão regular e uma iteração
+assíncrona do `readline`. Esta seção define um leitor que converte os registros
+direto dos bytes do arquivo, sem alterar nenhuma regra das seções 4 a 8.
+
+### 12.2 Requisitos
+
+- **RB-01 Mesmo resultado.** Para qualquer arquivo, `readDataset` produz os mesmos
+  grupos, com os mesmos registros (valores e tipos), na mesma ordem, e os mesmos
+  erros (mensagem, arquivo, linha e campo) que a leitura de referência:
+  decodificação UTF-8, divisão em linhas pelo `readline` e `groupByTimestamp`.
+  Grupos produzidos antes de um erro também são os mesmos.
+- **RB-02 Caminho rápido restrito.** Só as linhas num subconjunto canônico do
+  formato da seção 4.2 são convertidas direto dos bytes. Qualquer outra linha
+  (cabeçalho, linha vazia, com `CR` isolado, fora do subconjunto ou inválida) é
+  decodificada e convertida por `parseRecord`. As regras de validação e as
+  mensagens de erro continuam num único lugar e não são flexibilizadas.
+- **RB-03 Números exatos.** Os ids e as coordenadas do caminho rápido têm o mesmo
+  valor `double` que `Number()` produziria, inclusive o sinal de zero.
+- **RB-04 Linhas entre blocos.** Uma linha dividida entre dois ou mais blocos de
+  leitura é reconstituída antes da conversão, em qualquer posição do corte (inclusive
+  entre `CR` e `LF`).
+- **RB-05 Terminações.** `LF`, `CRLF` e `CR` isolado, BOM no início e última linha
+  sem terminação, como na seção 4.1.
+- **RB-06 Memória limitada.** O arquivo é lido em blocos de tamanho fixo. Entre
+  blocos, só é mantida a linha incompleta, copiada, além do estado da seção 8.
+- **RB-07 Contrapressão e fechamento.** Um bloco só é lido quando o consumidor pede
+  um grupo que os blocos já lidos não completam. O arquivo é fechado no fim, em erro
+  e quando o consumidor interrompe a iteração.
+- **RB-08 Referência preservada.** A leitura anterior continua disponível como
+  `readDatasetLines` e é usada para validar a nova.
+
+### 12.3 Invariantes
+
+- **I-B1** Para toda linha em que o caminho rápido devolve um registro,
+  `parseRecord` devolveria um registro igual (`deepStrictEqual`, com `Object.is`
+  nas coordenadas).
+- **I-B2** A numeração das linhas segue a divisão do `readline`; cada linha
+  incrementa o contador uma vez, pelo caminho rápido ou pelo lento.
+- **I-B3** O estado entre blocos é a linha incompleta, o timestamp e os bytes do
+  último timestamp, o número da linha e o grupo corrente.
+
+### 12.4 Critérios de aceitação
+
+| ID    | Critério | Verificação |
+| ----- | -------- | ----------- |
+| CA-11 | Linhas canônicas, incluindo sinais, zero negativo, limites ±90/±180, 15 dígitos, ids com zeros à esquerda e listas com e sem aspas, produzem exatamente o registro de `parseRecord`. | Teste automatizado |
+| CA-12 | Linhas fora do subconjunto, válidas ou inválidas, são entregues a `parseRecord`. | Teste automatizado |
+| CA-13 | 200 mil coordenadas aleatórias são iguais bit a bit a `Number()`. Em 100 mil linhas aleatórias com mutações, o caminho rápido nunca devolve um registro diferente do de `parseRecord`. | Teste automatizado (semente fixa) |
+| CA-14 | O leitor por bytes e a referência produzem os mesmos grupos e erros com blocos de **todos** os tamanhos, de 1 byte ao arquivo inteiro: LF, CRLF, CR isolado, BOM, linhas vazias, sem quebra final, linhas não canônicas, cada erro de E-02 a E-06 e bytes UTF-8 inválidos. | Teste automatizado |
+| CA-15 | O arquivo é fechado no fim, em erro e em interrupção pelo consumidor. | Teste automatizado |
+| CA-16 | Datasets 1 a 7: `readDataset` e `readDatasetLines` produzem os mesmos grupos em todo o arquivo. | Script `compare-readers` (plano, seção 12) |
+| CA-17 | Tempo e memória da leitura medidos antes e depois, nas mesmas condições. | Medição documentada no plano |

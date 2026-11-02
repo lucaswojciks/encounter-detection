@@ -1,6 +1,7 @@
 # Spec 003 — Otimização espacial
 
-- **Status:** Implementada
+- **Status:** Implementada; varredura por latitude (seção 7) implementada na branch
+  `perf/optimize-dataset-processing`
 - **Depende de:** [Spec 002](../002-encounter-detection/spec.md) (detector de referência e
   interface `PairSearch`)
 - **Documentos relacionados:** [`plan.md`](plan.md), [`tasks.md`](tasks.md)
@@ -75,3 +76,40 @@ ou formato de saída, CLI e escrita de arquivos (spec 004).
 | D1 | Grade em graus ou projeção métrica | Grade em graus com dimensões derivadas de limites inferiores da própria fórmula de Haversine (plano, seção 3). Ela é exata em qualquer latitude e trata o antimeridiano. |
 | D2 | Tamanho da célula | Lado mínimo que garante RS-03 (20 m mais margem de segurança), para que só células vizinhas precisem ser examinadas (plano, seção 4). |
 | D3 | Estratégia padrão | `allPairs` continua padrão de `detectEncounters` até a spec 004 decidir com base nos benchmarks. |
+| D4 | Estratégia padrão do processamento após a seção 7 | `latitudeSweep` substitui `spatialHash` como padrão da CLI e de `processDataset`. `spatialHash` continua disponível (`--search spatial`) e `allPairs` continua sendo a referência e o padrão de `detectEncounters`. |
+
+## 7. Varredura por latitude
+
+### 7.1 Motivo
+
+Com `spatialHash`, a detecção do dataset 7 levava ≈4 s, quase todo em montar o
+índice: um `Map`, uma lista por célula ocupada e 9 consultas por registro. Isso é
+mais do que custam as distâncias que o índice evita, porque os grupos são pequenos
+(até 120 registros). A varredura por latitude usa as mesmas condições necessárias
+da seção 3 do plano, sem estrutura de hash.
+
+### 7.2 Requisitos
+
+- **RV-01 Mesma interface.** `latitudeSweep` implementa `PairSearch` e cumpre RS-01 a
+  RS-10 e os invariantes I-01 a I-03, como `spatialHash`.
+- **RV-02 Filtros seguros.** Um par só é descartado quando viola uma condição
+  necessária para distância menor que `D'` (20 m mais a margem de 0,1 %): diferença de
+  latitude maior que `h` (plano, seção 3.1) ou
+  `cos Φ · |sin(Δλ/2)| ≥ sin(D'/2R)`, com `Φ` a maior `|latitude|` do par (plano,
+  seção 3.2).
+- **RV-03 Casos geográficos.** Coordenadas negativas, latitudes altas, polos e
+  antimeridiano são tratados pelas próprias desigualdades, sem casos especiais.
+- **RV-04 Ordem de `allPairs`.** Os candidatos são visitados ordenados por `(i, j)`,
+  com `i < j` na ordem do input (RS-08).
+- **RV-05 Coexistência.** `spatialHash` e `allPairs` continuam disponíveis e
+  testados.
+
+### 7.3 Critérios de aceitação
+
+| ID | Critério | Verificação |
+| -- | -------- | ----------- |
+| CA-07 | Os testes de CA-03 e CA-04 passam também com `latitudeSweep`: mesma suíte, executada para as duas estratégias. | Teste automatizado |
+| CA-08 | Casos próprios da varredura: limite da faixa de latitude, mesma latitude com longitudes distantes, antimeridiano, polos, ordem de visita diferente da ordem de latitude e muitos registros na mesma faixa. | Teste automatizado |
+| CA-09 | Datasets 1 e 2 com `latitudeSweep` idênticos aos gabaritos; datasets 1 a 7 com encontros `deepStrictEqual` aos de `allPairs` em **todos** os timestamps. | Teste automatizado e `compare-strategies` |
+| CA-10 | Mutações das condições (faixa menor, longitude sem periodicidade, menor latitude do par, ordem dos pares) fazem testes falharem. | Verificação documentada no plano |
+| CA-11 | Benchmark da detecção antes e depois, nas mesmas condições. | Medição documentada no plano |

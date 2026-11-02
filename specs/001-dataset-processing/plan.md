@@ -6,6 +6,11 @@
 Alternativas de desempenho são apenas candidatas. Qualquer troca depende de
 benchmark (spec 003).
 
+> **Atualização:** as seções 1 a 11 descrevem a primeira implementação, com
+> `readline`, que continua no código como referência (`readDatasetLines`). Desde a
+> spec, seção 12, `readDataset` lê o arquivo em blocos de bytes e converte os
+> registros canônicos sem passar por strings; ver a seção 12 deste plano.
+
 ## 1. Visão geral
 
 ```
@@ -28,12 +33,15 @@ src/dataset/
 ├── types.ts               # LocationRecord, TimestampGroup
 ├── dataset-error.ts       # DatasetError
 ├── parse-record.ts        # parseRecord(line, lineNumber, source): LocationRecord
-├── group-by-timestamp.ts  # groupByTimestamp(lines, source): AsyncGenerator<TimestampGroup>
-└── read-dataset.ts        # readDataset(path): AsyncGenerator<TimestampGroup>
+├── group-by-timestamp.ts  # TimestampGrouper; groupByTimestamp(lines, source): AsyncGenerator<TimestampGroup>
+├── parse-record-bytes.ts  # RecordBytesParser: caminho rápido da conversão (seção 12)
+├── chunk-parser.ts        # DatasetChunkParser: blocos de bytes → linhas → grupos (seção 12)
+└── read-dataset.ts        # readDataset(path) (bytes) e readDatasetLines(path) (readline, referência)
 test/dataset/              # testes unitários e de integração
 test/fixtures/official/    # datasets 1 e 2 e gabaritos oficiais (bytes originais)
 scripts/
-└── measure-dataset.ts     # medição diagnóstica (CA-10)
+├── measure-dataset.ts     # medição diagnóstica (CA-10); --reader bytes|lines
+└── compare-readers.ts     # equivalência entre readDataset e readDatasetLines (CA-16)
 ```
 
 Sem camadas adicionais (repositórios, fábricas, injeção de dependências).
@@ -247,4 +255,177 @@ Leitura dos resultados:
   que ele havia sido fechado, passava mesmo sem fechar o stream. No Windows, o libuv
   abre arquivos com `FILE_SHARE_DELETE`. O teste foi removido para não dar falsa
   garantia. O encerramento da fonte de linhas é coberto pelo teste de contrapressão
-  do agrupador.
+  do agrupador. Com o leitor por bytes (seção 12), o fechamento do arquivo passou a
+  ter um teste direto (CA-15).
+
+## 12. Leitura a partir de bytes (spec, seção 12)
+
+### 12.1 Visão geral
+
+```
+arquivo ──► readDataset ──────► DatasetChunkParser ─────────► TimestampGrouper ──► consumidor
+            FileHandle.read     blocos → linhas (LF/CRLF/CR)  cabeçalho, ordem,
+            blocos de 1 MiB     linha canônica → RecordBytesParser   grupos
+                                outra linha → texto → parseRecord
+```
+
+- `RecordBytesParser` (`parse-record-bytes.ts`) converte uma linha direto dos
+  bytes, ou devolve `undefined` para que ela siga o caminho de texto.
+- `DatasetChunkParser` (`chunk-parser.ts`) divide os blocos em linhas e entrega
+  registros ou texto ao `TimestampGrouper`. Não faz I/O e é testado com blocos de
+  qualquer tamanho.
+- `TimestampGrouper` (`group-by-timestamp.ts`) tem o estado que antes ficava dentro
+  de `groupByTimestamp`: número da linha, cabeçalho, grupo corrente e verificação de
+  ordem (E-06). As duas leituras usam o mesmo código para essas regras.
+- `readDataset` só lê o arquivo e converte erros de sistema em `DatasetError`.
+
+### 12.2 Caminho rápido da conversão
+
+Subconjunto aceito, no qual o resultado é o mesmo de `parseRecord`:
+
+| Campo | Aceito pelo caminho rápido | Fora dele (vai para `parseRecord`) |
+| ----- | -------------------------- | ---------------------------------- |
+| id, facção | 1 a 15 dígitos (facção também vazia) | 16 ou mais dígitos, sinal, espaço, vazio no id |
+| timestamp | `YYYY-MM-DD HH:MM:SS` com ou sem aspas | qualquer outro texto |
+| latitude, longitude | sinal opcional, ≥ 1 dígito, ponto opcional seguido de ≥ 1 dígito, **15 dígitos no total**, dentro de ±90 / ±180 | mais de 15 dígitos, `5.`, `.5`, expoente, vírgula, fora do intervalo |
+| medidaProtetiva | `true`, `false` | qualquer outro texto |
+| lista de restrição | vazia, ou ids de 1 a 15 dígitos separados por `,`, com ou sem aspas | ids vazios, aspas desbalanceadas, espaços, ids de 16 dígitos |
+| linha | exatamente 7 campos, só ASCII, sem `CR` (além do `CR` final do `CRLF`) | qualquer outra |
+
+- **Inteiros.** Até 15 dígitos, o valor é menor que 2⁵³ e o acumulador
+  `v·10 + d` é exato a cada passo. É o mesmo valor de `Number(s)`, e não é preciso
+  verificar `Number.isSafeInteger`.
+- **Coordenadas.** Com `m` o inteiro formado pelos dígitos (até 15, exato) e `k` o
+  número de decimais, o valor é `m / 10^k`. Os dois operandos são `double` exatos
+  (`10^k` é exato até `k = 22`), e a divisão IEEE 754 é corretamente arredondada:
+  o resultado é o `double` mais próximo de `m·10⁻ᵏ`, o mesmo que `Number(s)`
+  devolve. O sinal é aplicado depois (`−0` para `-0.0`, como em `Number`). O teste de
+  intervalo é o mesmo de `parseRecord`.
+- **Timestamp.** Os 19 bytes são comparados com os do timestamp anterior. Se forem
+  iguais (o caso comum: 120 linhas por grupo no dataset 7), a string anterior é
+  reutilizada, sem validar nem decodificar de novo. Caso contrário, os bytes são
+  validados e uma nova string é criada.
+- **Erros.** O caminho rápido nunca lança erro. Toda linha inválida é recusada por
+  ele e chega a `parseRecord`, que produz a mesma mensagem de antes. Não há uma
+  segunda versão das regras de validação.
+
+### 12.3 Divisão em linhas
+
+- As linhas são separadas no `LF`, encontrado com `Buffer.indexOf` (nativo).
+- O caminho rápido recebe a linha sem o `CR` final do `CRLF`.
+- O caminho lento decodifica a linha (UTF-8) e a divide em cada `CR`, descartando o
+  último trecho vazio. Isso reproduz a divisão do `readline` com
+  `crlfDelay: Infinity` (`\r\n`, `\n` ou `\r` isolado), inclusive a numeração das
+  linhas.
+- O cabeçalho (linha 1) sempre segue o caminho lento, que remove o BOM e valida o
+  texto.
+- Uma linha que termina em outro bloco é guardada como **cópia** dos seus bytes: o
+  buffer de leitura é reutilizado. Ela é concatenada com o início do bloco seguinte.
+  Ao fim do arquivo, a linha pendente (sem terminação) é processada.
+- Os grupos de um bloco são entregues por um gerador síncrono (`push`), sem acumular
+  uma lista. Um erro no meio do bloco interrompe a iteração naquela linha, depois de
+  entregues os grupos anteriores. O laço por linha está escrito inline, porque
+  `yield*` criaria um gerador por linha.
+
+### 12.4 Leitura do arquivo
+
+| Opção | Prós | Contras | Decisão |
+| ----- | ---- | ------- | ------- |
+| `createReadStream` + `for await` dos blocos | API de streams | Ao sair do laço por erro, o iterador do stream o destrói com `AbortError`, e esperar o evento `close` rejeitava com esse erro, substituindo o `DatasetError`. Encontrado pelos testes de erro e de interrupção. | Rejeitada |
+| **`FileHandle.read` num buffer reutilizado** | O próximo bloco só é lido quando o consumidor pede um grupo (RB-07); fechamento explícito com `close()` no `finally`; um único buffer | Sem leitura antecipada em paralelo com o processamento | **Adotada** |
+
+- **Tamanho do bloco: 1 MiB.** Numa medição exploratória com a CLI (2 execuções por
+  tamanho), os datasets 6 e 7 levaram 2,47 s e 3,69–3,87 s com 64 KiB, 2,33–2,86 s e
+  3,41–3,50 s com 256 KiB e 2,22 s e 3,27–3,31 s com 1 MiB. No dataset 3 não houve
+  diferença (0,05 s). O benchmark da seção 12.6 usa 1 MiB.
+- **Memória:** um buffer de 1 MiB, a linha pendente, os bytes do último timestamp e
+  o grupo corrente. Continua `O(maior grupo)` (RP-02).
+- **Erros de sistema** (`ENOENT`, `EISDIR`, `EACCES`) são convertidos em
+  `DatasetError`, com a mesma mensagem da leitura por stream (`cannot read file:
+  ENOENT: no such file or directory, open '…'`).
+
+### 12.5 Validação
+
+| Verificação | Resultado |
+| ----------- | --------- |
+| CA-11 e CA-12: 11 linhas canônicas iguais a `parseRecord`; 46 linhas recusadas pelo caminho rápido, 3 delas válidas para `parseRecord` | Passa |
+| CA-13: 200 000 pares de coordenadas aleatórias; 100 000 linhas aleatórias com até 3 mutações | Coordenadas iguais bit a bit a `Number()`; nenhuma linha aceita com registro diferente do de `parseRecord` |
+| CA-14: 28 conteúdos (12 variações de terminação, BOM e linhas vazias; linhas válidas não canônicas; 12 erros e 2 arquivos só com cabeçalho; UTF-8 inválido) com blocos de 1 byte até o arquivo inteiro | Mesmos grupos, registros, mensagens, linhas e campos que `readline` + `groupByTimestamp` |
+| `readDataset` num arquivo de 3,3 MiB com CRLF (mais de 2 blocos) | Igual a `readDatasetLines` |
+| CA-15: fechamento no fim, em erro e em `break` | Os 3 `FileHandle` terminam com `fd = -1` |
+| CA-16: `compare-readers` nos datasets 1 a 7 | Idênticos em 500, 1 250, 2 500, 6 667, 12 500, 80 000 e 100 000 grupos, num total de **21 530 020 registros** |
+
+Mutantes (alteração temporária do código compilado, uma por vez, com os testes de
+leitura):
+
+| Mutação | Testes que falham |
+| ------- | ----------------: |
+| Inteiros de até 16 dígitos | 3 |
+| Decimais por multiplicação (`m · 10⁻ᵏ`) | 6 |
+| Timestamp anterior sempre reutilizado | 10 |
+| Sem teste de intervalo | 4 |
+| Aspas finais da lista não exigidas | 2 |
+| `CR` isolado não encerra linha | 2 |
+| Linha pendente sem cópia | 2 |
+| Linha pendente descartada no fim | 6 |
+| Arquivo não fechado | 1 |
+| `CR` do `CRLF` mantido no caminho rápido | 0: mutação equivalente. A linha é recusada pelo caminho rápido e convertida corretamente pelo lento; só o desempenho muda |
+
+### 12.6 Resultados (CA-17)
+
+Executado em 2026-11-02 com Node.js 24.19.0, Windows 11 Pro, AMD Ryzen 5 5600X,
+16 GB de RAM e SSD, com os arquivos já no cache do sistema operacional. **Anterior**
+é o build da `main` (`3a521f6`, leitura com `readline`), compilado num worktree
+temporário. **Otimizada** é o build desta branch. São 5 rodadas, cada medição num
+processo separado, alternando a ordem das versões a cada rodada:
+
+```
+node dist/scripts/measure-dataset.js data/datasetN.txt
+```
+
+Leitura, parsing, validação e agrupamento, sem detecção. Valores: **mediana
+[mínimo–máximo]**, em segundos.
+
+| Dataset | Anterior | Otimizada | Redução | Fator |
+| ------- | -------- | --------- | ------: | ----: |
+| 1 | 0,013 [0,012–0,014] | 0,007 [0,007–0,008] | 46 % | 1,9× |
+| 2 | 0,038 [0,036–0,042] | 0,018 [0,016–0,019] | 53 % | 2,1× |
+| 3 | 0,114 [0,111–0,175] | 0,042 [0,039–0,073] | 63 % | 2,7× |
+| 4 | 0,402 [0,383–0,410] | 0,108 [0,104–0,130] | 73 % | 3,7× |
+| 5 | 0,994 [0,954–1,451] | 0,270 [0,251–0,299] | 73 % | 3,7× |
+| 6 | 8,037 [7,753–8,774] | 1,812 [1,789–2,385] | 77 % | 4,4× |
+| 7 | 11,848 [11,488–12,092] | 2,715 [2,588–2,894] | 77 % | 4,4× |
+| **Soma das medianas** | **21,446** | **4,972** | **77 %** | **4,3×** |
+
+Memória (mediana das 5 execuções):
+
+| Dataset | Pico de heap, anterior | Pico de heap, otimizada | RSS máximo, anterior | RSS máximo, otimizada |
+| ------- | ---------------------: | ----------------------: | -------------------: | --------------------: |
+| 1 | 6,5 MiB | 5,2 MiB | 46,2 MiB | 45,8 MiB |
+| 3 | 8,9 MiB | 6,1 MiB | 52,6 MiB | 47,8 MiB |
+| 5 | 13,0 MiB | 8,0 MiB | 60,8 MiB | 51,8 MiB |
+| 6 | 32,4 MiB | 13,2 MiB | 100,9 MiB | 61,7 MiB |
+| 7 | 32,3 MiB | 12,9 MiB | 103,1 MiB | 61,7 MiB |
+
+- Em todos os datasets, a pior execução da versão otimizada foi mais rápida que a
+  melhor da anterior.
+- O ganho cresce com o arquivo: nos datasets pequenos, o custo fixo (abrir o arquivo,
+  compilar o código) pesa mais.
+- A memória **cai**: sem uma string, um array de campos e um resultado de expressão
+  regular por linha, sobra menos lixo entre coletas. O buffer de 1 MiB não aparece
+  como aumento.
+- O cache frio do disco não foi medido. Com o arquivo fora do cache, a leitura física
+  (≈0,5 s para os 609 MiB do dataset 7 com o cache quente) pode passar a pesar mais.
+
+### 12.7 Riscos e limitações
+
+- **Dois caminhos de conversão.** O caminho rápido precisa continuar sendo um
+  subconjunto exato de `parseRecord`. Uma mudança nas regras da seção 4.2 exige
+  revisar `RecordBytesParser`. Os testes diferenciais (CA-13 e CA-14) cobrem os casos
+  gerados, não todos os casos possíveis.
+- **`CR` isolado** continua encerrando linha, como no `readline`. É um comportamento
+  herdado, não exigido pelo enunciado, mantido para não mudar resultados.
+- **UTF-8 inválido** só aparece em linhas recusadas pelo caminho rápido (que aceita
+  apenas ASCII) e é decodificado como antes. O teste cobre uma sequência truncada.
+- **Linhas muito longas** são acumuladas até o próximo `LF`, como no `readline`. Não há
+  limite de tamanho de linha.

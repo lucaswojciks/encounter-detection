@@ -1,6 +1,6 @@
 # Plano técnico 003 — Otimização espacial
 
-- **Status:** Implementado
+- **Status:** Implementado; varredura por latitude na seção 12
 - **Spec:** [`spec.md`](spec.md)
 
 ## 1. Visão geral
@@ -307,3 +307,137 @@ consistente o tempo de detecção a partir de 40 registros por grupo. Os dataset
 ser maior neles, mas isso não foi verificado. **Recomendação para a spec 004:** usar
 `spatialHash` no processamento, mantendo `allPairs` como referência nos testes.
 `detectEncounters` continua com `allPairs` como padrão (D3) até essa decisão.
+
+## 12. Varredura por latitude (spec, seção 7)
+
+### 12.1 Algoritmo
+
+```ts
+export const latitudeSweep: PairSearch = (records, visit) => {
+  // 1. latitudes num Float64Array; índices 0..n-1 num Int32Array, ordenados por latitude
+  // 2. para cada p, comparar com q = p+1, p+2, ... enquanto lat[q] − lat[p] ≤ h;
+  //    o par entra como candidato se passar no filtro de longitude (12.2)
+  // 3. candidatos codificados como i·n + j (i < j), ordenados numericamente
+  // 4. visit(records[i], records[j]) na ordem resultante
+};
+```
+
+Não há grade, `Map` nem consultas a células. A faixa de latitude de cada registro
+é percorrida em ordem até o primeiro registro fora dela, o que, com os registros
+espalhados pelo território, quase sempre acontece na primeira comparação.
+
+### 12.2 Correção
+
+As condições são as necessárias da seção 3, aplicadas a cada par em vez de a uma
+grade:
+
+- **Latitude (3.1).** `d < D'` ⇒ `|Δφ| < D'/R`, ou seja, diferença de latitude em
+  graus menor que `h`. A varredura só descarta pares com diferença **maior** que
+  `h`. Como os índices estão ordenados por latitude, todo par com diferença `≤ h`
+  aparece no laço interno antes da interrupção.
+- **Longitude (3.2).** `d < D'` ⇒ `cos Φ · |sin(Δλ/2)| < sin(D'/2R)`, com `Φ` a maior
+  `|latitude|` do par. Diferente da grade, que usa o `Φ` do grupo inteiro, aqui `Φ` é
+  calculado por par, o que dá um filtro igual ou mais estreito com a mesma
+  garantia.
+  - **Antimeridiano.** `|sin(Δλ/2)|` tem período 360° em `Δλ`, então a diferença
+    direta (até 360°) e a circular dão o mesmo valor: 179,99995° e −179,99995°
+    (`Δλ` = 359,9999°) são tratados como vizinhos sem caso especial.
+  - **Polos.** Perto de ±90°, `cos Φ ≈ 0` (`cos(π/2)` em ponto flutuante é
+    ≈ 6·10⁻¹⁷), e qualquer longitude passa no filtro. É o equivalente à coluna
+    única da grade.
+  - **Coordenadas negativas.** As desigualdades usam diferenças e valores
+    absolutos, sem dependência de sinal.
+- **Ponto flutuante.** A margem de 0,1 % de `D'` (seção 3.4) cobre os erros das
+  diferenças em graus e de `sin` e `cos`. Esses erros são da ordem de 10⁻¹⁶
+  relativo, contra uma folga de 10⁻³.
+- **Ordem e visita única (RS-08, I-01, I-02).** Cada par `{i, j}` aparece uma única
+  vez no laço (de `min(p, q)` para `max(p, q)` na ordem de latitude). É codificado
+  como `i·n + j` com `i < j`, que é único e cuja ordem numérica é a ordem
+  lexicográfica de `(i, j)`, a de `allPairs`. A codificação é exata enquanto
+  `n² < 2⁵³`, ou seja, para grupos com menos de ≈9,4·10⁷ registros.
+
+### 12.3 Complexidade
+
+Para um grupo com `n` registros, `b` pares dentro da faixa de latitude e `k`
+candidatos:
+
+| Recurso | `spatialHash` | `latitudeSweep` |
+| ------- | ------------- | --------------- |
+| Tempo | `O(n + k log k)` esperado (indexação com `Map`, 9n consultas) | `O(n log n + b + k log k)` (ordenação de `n` índices numéricos, varredura das faixas) |
+| Pior caso | `O(n²)` (todos na mesma célula) | `O(n²)` (todos na mesma faixa de latitude) |
+| Memória adicional | `O(n)` (`Map`, listas, dois `Int32Array`) | `O(n)` (`Float64Array`, `Int32Array`, candidatos) |
+
+Com `n` até 120, o `O(n log n)` da ordenação de números é bem mais barato que o
+`Map` e as listas por célula.
+
+### 12.4 Decisões de implementação
+
+| Escolha | Alternativa | Motivo |
+| ------- | ----------- | ------ |
+| Latitudes e índices em `Float64Array` / `Int32Array` | `Array` de índices ordenado consultando `records[i].latitude` | Numa medição exploratória (2 execuções, só a detecção do dataset 6, os mesmos 27 pares visitados), 0,66 s contra 1,16–1,28 s. |
+| `Φ` por par | `Φ` do grupo, como na grade | Filtro igual ou mais estreito, com o mesmo argumento, e sem passada extra para calcular `Φ`. O custo do `sin`/`cos` só existe para pares dentro da faixa de latitude. |
+| Ordenar os candidatos | Visitar na ordem de latitude | A ordem de `allPairs` é exigida por RS-08 (regra de ids repetidos da spec 002). Há em geral 0 ou 1 candidato por grupo. |
+| Manter `spatialHash` | Remover | A equivalência foi comprovada, mas a estratégia continua sendo uma alternativa documentada e testada (`--search spatial`), e os testes de propriedade passam a comparar duas otimizações independentes com a força bruta. |
+
+### 12.5 Validação
+
+| Verificação | Resultado |
+| ----------- | --------- |
+| Suíte de CA-03/CA-04 (casos construídos e 400 grupos aleatórios) executada para `spatialHash` e `latitudeSweep` | Passa para as duas estratégias |
+| Testes próprios (CA-08) | Passam |
+| Gabaritos (datasets 1 e 2) com `latitudeSweep` | Idênticos, distâncias bit a bit e texto JSON igual ao arquivo oficial |
+| `compare-strategies` nos datasets 1 a 7, **todos** os grupos | 0 grupos divergentes, tanto para `spatialHash` quanto para `latitudeSweep`, em 500, 1 250, 2 500, 6 667, 12 500, 80 000 e 100 000 grupos (4, 6, 10, 15, 21, 27 e 35 encontros) |
+| CLI com `--search sweep`, `spatial` e `all` nos datasets 1 a 7 | Os 21 arquivos idênticos byte a byte a `outputs/encontros-datasetN.json` |
+
+Mutantes (alteração temporária do código compilado, uma por vez, com os testes de
+busca):
+
+| Mutação | Testes que falham |
+| ------- | ----------------: |
+| Faixa de latitude com metade de `h` | 9 |
+| Longitude sem periodicidade (`|Δλ/2|` no lugar de `|sin(Δλ/2)|`) | 3 |
+| Menor `|latitude|` do par no lugar da maior | 2 |
+| Sem ordenação dos candidatos | 8 |
+| Pares na ordem de latitude, sem normalizar `i < j` | 10 |
+
+### 12.6 Benchmark (CA-11)
+
+Mesmas condições da spec 001, plano, seção 12.6: Node.js 24.19.0, Windows 11 Pro,
+AMD Ryzen 5 5600X; 5 rodadas alternadas; um processo por medição. **Anterior** é
+`spatialHash` no build da `main` (`3a521f6`). **Otimizada** é `latitudeSweep` nesta
+branch. É só o tempo de `detectEncounters` (soma por grupo), sem leitura:
+
+```
+node dist/scripts/measure-encounters.js --search spatial|sweep data/datasetN.txt
+```
+
+| Dataset | Registros por timestamp | `spatialHash` (anterior) | `latitudeSweep` | Redução | Fator |
+| ------- | ----------------------: | ------------------------ | --------------- | ------: | ----: |
+| 1 | 10 | 0,005 [0,005–0,006] | 0,002 [0,002–0,002] | 60 % | 2,5× |
+| 2 | 20 | 0,018 [0,016–0,018] | 0,004 [0,004–0,006] | 78 % | 4,5× |
+| 3 | 40 | 0,046 [0,045–0,059] | 0,012 [0,010–0,014] | 74 % | 3,8× |
+| 4 | 60 | 0,158 [0,155–0,162] | 0,029 [0,029–0,040] | 82 % | 5,4× |
+| 5 | 80 | 0,368 [0,353–0,444] | 0,072 [0,067–0,083] | 80 % | 5,1× |
+| 6 | 100 | 2,843 [2,775–3,026] | 0,535 [0,508–0,681] | 81 % | 5,3× |
+| 7 | 120 | 4,316 [4,206–4,655] | 0,784 [0,741–0,865] | 82 % | 5,5× |
+| **Soma das medianas** | | **7,754** | **1,438** | **81 %** | **5,4×** |
+
+- Em todos os datasets, a pior execução de `latitudeSweep` foi mais rápida que a
+  melhor de `spatialHash`.
+- Ao contrário de `spatialHash`, a varredura já ganha nos datasets 1 e 2 (grupos de 10
+  e 20 registros), onde a grade não ganhava da força bruta (seção 11.3).
+- Os encontros são os mesmos nas 70 execuções (4, 6, 10, 15, 21, 27 e 35).
+- Cálculos de Haversine com `latitudeSweep` (`measure-encounters --count`, execução
+  separada): 4, 6, 12, 15, 21, 27 e 36 nos datasets 1 a 7, contra 6, 6, 14, 16 e 22
+  de `spatialHash` nos datasets 1 a 5 (seção 11.2). O filtro de longitude por par é
+  igual ou mais estreito que a coluna da grade.
+- A memória é tratada junto com a aplicação completa, no README e na spec 001, plano,
+  seção 12.6. Sem o `Map` e as listas por grupo, sobra menos lixo temporário.
+
+### 12.7 Decisão
+
+`latitudeSweep` cumpre RS-01 a RS-10 com o mesmo argumento de correção, é equivalente
+a `allPairs` em todos os testes e em todos os timestamps dos sete datasets, e reduz a
+detecção de forma consistente em todos os tamanhos de grupo. **Adotada como padrão
+da CLI e de `processDataset` (D4).** `spatialHash` continua disponível e testado
+como alternativa, e `allPairs` continua sendo a referência.

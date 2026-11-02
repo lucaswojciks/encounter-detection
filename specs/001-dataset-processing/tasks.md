@@ -1,6 +1,7 @@
 # Tarefas 001 — Processamento de datasets
 
-- **Status:** Todas as tarefas concluídas em 2026-11-02; integrada à `main`.
+- **Status:** T01–T10 concluídas em 2026-11-02 e integradas à `main`; T11–T15
+  (leitura a partir de bytes) concluídas na branch `perf/optimize-dataset-processing`.
 - **Spec:** [`spec.md`](spec.md) · **Plano:** [`plan.md`](plan.md)
 
 Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
@@ -140,6 +141,56 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 - **Arquivos:** `specs/001-dataset-processing/*.md`, `specs/README.md`.
 - **Dependências:** T01–T09.
 
+## T11 — Agrupador compartilhado
+
+- [x] Concluída
+
+- **Objetivo:** extrair o estado de `groupByTimestamp` (linha, cabeçalho, grupo
+  corrente, ordem) para `TimestampGrouper`, usado pelos dois leitores.
+- **Arquivos:** `src/dataset/group-by-timestamp.ts`.
+- **Critérios de conclusão:** testes existentes de `groupByTimestamp` inalterados e
+  passando.
+- **Dependências:** T04.
+
+## T12 — Conversão a partir de bytes
+
+- [x] Concluída
+
+- **Objetivo:** RB-02, RB-03 e I-B1 (spec, seção 12; plano, seção 12.2).
+- **Arquivos:** `src/dataset/parse-record-bytes.ts`,
+  `test/dataset/parse-record-bytes.test.ts`.
+- **Testes:** CA-11, CA-12 e CA-13.
+- **Dependências:** T03.
+
+## T13 — Divisão de blocos em linhas
+
+- [x] Concluída
+
+- **Objetivo:** RB-01, RB-04, RB-05 e I-B2 (plano, seção 12.3).
+- **Arquivos:** `src/dataset/chunk-parser.ts`, `test/dataset/chunk-parser.test.ts`.
+- **Testes:** CA-14, comparando com `readline` + `groupByTimestamp` em todos os
+  tamanhos de bloco.
+- **Dependências:** T11, T12.
+
+## T14 — `readDataset` por bytes
+
+- [x] Concluída
+
+- **Objetivo:** RB-06 a RB-08 (plano, seção 12.4).
+- **Arquivos:** `src/dataset/read-dataset.ts`, `test/dataset/read-dataset.test.ts`.
+- **Testes:** testes existentes de `readDataset`; arquivo maior que dois blocos com
+  CRLF comparado com `readDatasetLines`; fechamento do arquivo (CA-15).
+- **Dependências:** T13.
+
+## T15 — Validação e medição
+
+- [x] Concluída
+
+- **Objetivo:** CA-16 e CA-17.
+- **Arquivos:** `scripts/compare-readers.ts`, `scripts/measure-dataset.ts`
+  (`--reader`), plano (seção 12.6).
+- **Dependências:** T14.
+
 ---
 
 ## Ordem e dependências
@@ -149,4 +200,6 @@ T01 ─► T02 ─► T03 ─► T04 ─┬─► T05
                           └─► T06 ─┬─► T08 ◄── T07
                                    └─► T09
 T01–T09 ─► T10
+T04 ─► T11 ─┐
+T03 ─► T12 ─┴─► T13 ─► T14 ─► T15
 ```

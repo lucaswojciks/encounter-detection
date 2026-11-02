@@ -24,7 +24,7 @@ estratégias de busca, além do README principal (revisão final).
 ## 3. Interface de linha de comando
 
 ```
-encounter-detection <dataset> [--output <arquivo.json>] [--search spatial|all]
+encounter-detection <dataset> [--output <arquivo.json>] [--search sweep|spatial|all]
 encounter-detection --help
 ```
 
@@ -32,8 +32,9 @@ encounter-detection --help
 - **CLI-02** `--output` (ou `-o`) é opcional. Sem ele, o arquivo é
   `outputs/encontros-<nome do dataset sem extensão>.json`, relativo ao diretório
   corrente; o diretório é criado se não existir.
-- **CLI-03** `--search` seleciona a estratégia: `spatial` (`spatialHash`, **padrão**)
-  ou `all` (`allPairs`, para validação).
+- **CLI-03** `--search` seleciona a estratégia: `sweep` (`latitudeSweep`, **padrão**
+  desde a spec 003, seção 7), `spatial` (`spatialHash`) ou `all` (`allPairs`, para
+  validação).
 - **CLI-04** Ao concluir, o resumo vai para a saída padrão: dataset, arquivo de saída,
   estratégia, registros, timestamps, encontros (total e por tipo), duração e memória
   máxima (RSS).
@@ -93,7 +94,7 @@ encounter-detection --help
 | ID | Critério | Verificação |
 | -- | -------- | ----------- |
 | CA-01 | Argumentos: ajuda, ausência do dataset, opção desconhecida, `--search` inválido, `--output` sem valor. | Teste automatizado da CLI |
-| CA-02 | Estratégia padrão `spatialHash`; `--search all` produz o mesmo arquivo. | Teste automatizado |
+| CA-02 | Estratégia padrão `latitudeSweep` (antes, `spatialHash`); `--search spatial` e `--search all` produzem o mesmo arquivo. | Teste automatizado |
 | CA-03 | Saída igual a `JSON.stringify(lista, null, 2)` para 0, 1 e vários encontros. | Teste automatizado do escritor |
 | CA-04 | Escrita incremental: o temporário cresce durante o processamento, e o arquivo final só aparece ao término. | Teste automatizado |
 | CA-05 | Dataset sem encontros (ou só com cabeçalho) gera `[]`. | Teste automatizado |
@@ -110,4 +111,4 @@ encounter-detection --help
 | -- | ------- | ------- |
 | D1 | Nome padrão do output | `outputs/encontros-<dataset>.json` (ex.: `outputs/encontros-dataset1.json`). |
 | D2 | Versionamento dos outputs | Os sete outputs finais (`outputs/encontros-*.json`, 40 kB) são versionados como parte da entrega, marcados como `-text` para preservar os bytes; outros arquivos em `outputs/` são ignorados. |
-| D3 | Estratégia padrão | `spatialHash`, conforme o benchmark da spec 003. |
+| D3 | Estratégia padrão | `spatialHash`, conforme o benchmark da spec 003. Substituída por `latitudeSweep` (spec 003, seção 7, D4); os outputs são idênticos byte a byte com as três estratégias. |

@@ -1,6 +1,7 @@
 # Tarefas 003 — Otimização espacial
 
-- **Status:** Todas as tarefas concluídas em 2026-11-02; integrada à `main`.
+- **Status:** T01–T09 concluídas em 2026-11-02 e integradas à `main`; T10–T13
+  (varredura por latitude) concluídas na branch `perf/optimize-dataset-processing`.
 - **Spec:** [`spec.md`](spec.md) · **Plano:** [`plan.md`](plan.md)
 
 Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
@@ -105,6 +106,41 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 - **Objetivo:** atualizar spec, plano, tarefas e `specs/README.md` com os resultados.
 - **Dependências:** T01–T08.
 
+## T10 — Estratégia `latitudeSweep`
+
+- [x] Concluída
+
+- **Objetivo:** RV-01 a RV-04 (spec, seção 7; plano, seção 12).
+- **Arquivos:** `src/encounters/latitude-sweep.ts`.
+- **Dependências:** T02.
+
+## T11 — Testes da varredura
+
+- [x] Concluída
+
+- **Objetivo:** CA-07, CA-08 e CA-10.
+- **Arquivos:** `test/encounters/spatial-hash.test.ts` (suíte executada para as duas
+  estratégias), `test/encounters/latitude-sweep.test.ts`,
+  `test/encounters/official-encounters.test.ts`.
+- **Dependências:** T10.
+
+## T12 — Estratégia padrão e scripts
+
+- [x] Concluída
+
+- **Objetivo:** D4; `latitudeSweep` em `compare-strategies` e `measure-encounters`.
+- **Arquivos:** `src/cli.ts`, `src/cli/arguments.ts`, `src/process-dataset.ts`,
+  `scripts/compare-strategies.ts`, `scripts/measure-encounters.ts`, testes da CLI.
+- **Dependências:** T10.
+
+## T13 — Equivalência e benchmark
+
+- [x] Concluída
+
+- **Objetivo:** CA-09 e CA-11.
+- **Arquivos:** plano (seção 12).
+- **Dependências:** T11, T12.
+
 ---
 
 ## Dependências
@@ -116,3 +152,6 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 | T03, T04, T05, T06, T07 | T02 |
 | T08 | T06, T07 |
 | T09 | T01–T08 |
+| T10 | T02 |
+| T11, T12 | T10 |
+| T13 | T11, T12 |
