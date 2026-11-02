@@ -22,6 +22,14 @@ describe("haversineDistance", () => {
     }
   });
 
+  test("multiplies the cosine product by sin² as a single term", () => {
+    // Dataset 4, pair 31-43 at 2024-01-01 02:03:15. Grouping the product as
+    // ((cos1 * cos2) * s) * s gives 10.584413373886987, one ulp below. Both
+    // groupings match the official answers; this pins the documented choice
+    // (spec 002, plan section 4).
+    assert.equal(haversineDistance(-18.80665, -41.26235, -18.80666, -41.26225), 10.584413373886989);
+  });
+
   test("the same point is at distance zero", () => {
     assert.equal(haversineDistance(-25.59386, -73.96319, -25.59386, -73.96319), 0);
   });
