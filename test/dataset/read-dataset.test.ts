@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { type FileHandle, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { createRequire, syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, test } from "node:test";
 
 import { DatasetError } from "../../src/dataset/dataset-error.js";
 import { HEADER } from "../../src/dataset/parse-record.js";
-import { readDataset } from "../../src/dataset/read-dataset.js";
+import { CHUNK_SIZE, readDataset, readDatasetLines } from "../../src/dataset/read-dataset.js";
 import type { TimestampGroup } from "../../src/dataset/types.js";
+
+const fsPromises = createRequire(import.meta.url)("node:fs/promises") as typeof import("node:fs/promises");
 
 const ROWS = [
   '1;;"2024-01-01 00:00:00";-25.59386;-73.96319;false;',
@@ -102,6 +105,53 @@ describe("readDataset", () => {
     const path = await fileWith("empty.txt", "");
 
     await assert.rejects(collect(path), { name: "DatasetError", message: `${path}: empty input: missing header` });
+  });
+
+  test("equals the readline reference on a multi-chunk file with CRLF and lines across chunk borders", async () => {
+    const lines = [HEADER];
+    for (let second = 0; second < 60; second++) {
+      const timestamp = `2024-01-01 00:${String(second).padStart(2, "0")}:00`;
+      for (let id = 1; id <= 1000; id++) {
+        const restricted = id % 7 === 0 ? `"${id + 1},${id + 2}"` : "";
+        lines.push(`${id};${id % 4 || ""};"${timestamp}";-${id % 80}.${second}1234;-4${id % 10}.98765;${id % 7 === 0};${restricted}`);
+      }
+    }
+    const path = await fileWith("large-crlf.txt", `${lines.join("\r\n")}\r\n`);
+    assert.ok((await stat(path)).size > 2 * CHUNK_SIZE);
+
+    const groups = await collect(path);
+    const reference: TimestampGroup[] = [];
+    for await (const group of readDatasetLines(path)) reference.push(group);
+    assert.equal(groups.length, 60);
+    assert.deepStrictEqual(groups, reference);
+  });
+
+  test("closes the file when the reading ends, fails or is stopped early by the consumer", async (t) => {
+    // Keeps every handle opened by readDataset; a closed FileHandle has fd -1.
+    const handles: FileHandle[] = [];
+    const open = fsPromises.open;
+    const spy = t.mock.method(fsPromises, "open", async (...args: Parameters<typeof open>) => {
+      const handle = await open(...args);
+      handles.push(handle);
+      return handle;
+    });
+    syncBuiltinESMExports(); // makes the ESM import of `open` in readDataset see the spy
+    try {
+      const valid = await fileWith("stop.txt", [HEADER, ...ROWS].join("\n"));
+      await collect(valid);
+      for await (const group of readDataset(valid)) {
+        assert.equal(group.timestamp, "2024-01-01 00:00:00");
+        break;
+      }
+      const invalid = await fileWith("fail.txt", [HEADER, ROWS[0], "broken", ROWS[2]].join("\n"));
+      await assert.rejects(collect(invalid), { name: "DatasetError", lineNumber: 3 });
+    } finally {
+      spy.mock.restore();
+      syncBuiltinESMExports();
+    }
+
+    assert.equal(handles.length, 3);
+    assert.deepEqual(handles.map((handle) => handle.fd), [-1, -1, -1]);
   });
 
   test("reports a missing file", async () => {
