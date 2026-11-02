@@ -330,7 +330,9 @@ sobre o próprio dataset de entrada.
 ## 12. Gerando os sete outputs
 
 Os datasets 1 e 2 estão no repositório (`test/fixtures/official/`). Os demais, de 5 MB a
-638 MB, ficam fora do Git e são baixados para `data/`:
+638 MB, ficam fora do Git e são baixados para `data/`.
+
+Bash (Linux, macOS ou Git Bash):
 
 ```bash
 mkdir -p data
@@ -344,16 +346,32 @@ for i in 1 2 3 4 5 6 7; do
 done
 ```
 
-No PowerShell, o segundo laço fica:
+PowerShell (Windows). `Invoke-WebRequest -OutFile` grava o download direto em disco. A barra
+de progresso é desligada porque, no Windows PowerShell 5.1, ela torna os arquivos grandes muito
+lentos:
 
 ```powershell
+New-Item -ItemType Directory -Force data | Out-Null
+$ProgressPreference = "SilentlyContinue"
+1..7 | ForEach-Object {
+  Invoke-WebRequest -Uri "https://bucket-projeto-trainee.s3.sa-east-1.amazonaws.com/dataset$_.txt" -OutFile "data/dataset$_.txt"
+}
+
+npm run build
 1..7 | ForEach-Object { node dist/src/cli.js "data/dataset$_.txt" }
 ```
 
 Os arquivos são gravados em `outputs/encontros-dataset1.json` … `outputs/encontros-dataset7.json`.
 Os sete outputs gerados estão versionados nessa pasta.
 
-Para conferir os resultados:
+Para conferir os resultados no PowerShell (`True` indica arquivos idênticos):
+
+```powershell
+(Get-FileHash outputs/encontros-dataset1.json).Hash -eq (Get-FileHash test/fixtures/official/respostas1.json).Hash
+(Get-FileHash outputs/encontros-dataset2.json).Hash -eq (Get-FileHash test/fixtures/official/respostas2.json).Hash
+```
+
+Para conferir os resultados no Bash:
 
 ```bash
 # outputs 1 e 2 idênticos aos gabaritos oficiais
