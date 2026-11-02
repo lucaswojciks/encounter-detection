@@ -1,6 +1,6 @@
 # Spec 002 — Detecção de encontros
 
-- **Status:** Em revisão
+- **Status:** Aprovada
 - **Depende de:** [Spec 001](../001-dataset-processing/spec.md) (grupos por timestamp)
 - **Documentos relacionados:** [`plan.md`](plan.md), [`tasks.md`](tasks.md),
   [`../001-dataset-processing/dataset-analysis.md`](../001-dataset-processing/dataset-analysis.md)
@@ -63,10 +63,13 @@ Notas sobre as regras:
   fora da sua lista é `generico`. Isso decorre de R-05 a R-07 e não é uma regra a
   mais.
 - **Sobreposição de R-05 e R-06** (um par que se lista e é da mesma facção): o
-  enunciado e os gabaritos não definem o tipo. A situação não ocorre em nenhum
-  dataset oficial: nos datasets 1 a 7, nenhum indivíduo com lista de restrição e
-  nenhum alvo de restrição tem facção (verificado nos arquivos completos 1 a 5 e no
-  primeiro grupo dos datasets 6 e 7). Ver a decisão pendente **D1** (seção 9).
+  enunciado e os gabaritos não tratam desse caso, e esta spec não cria requisito para
+  ele. A situação não ocorre em nenhum dataset oficial: nos datasets 1 a 7, nenhum
+  indivíduo com lista de restrição e nenhum alvo de restrição tem facção (verificado
+  nos arquivos completos 1 a 5 e no primeiro grupo dos datasets 6 e 7). Como a
+  classificação precisa devolver um único tipo, a implementação verifica as condições
+  numa ordem fixa. Essa ordem é um **detalhe de implementação** documentado no plano
+  (seção 5), não uma regra de negócio (decisão D1).
 
 ### 4.3 Unicidade
 
@@ -137,8 +140,8 @@ compatíveis com O-01 e O-02 [4.9].
 
 | ID | Questão | Proposta | Situação |
 | -- | ------- | -------- | -------- |
-| D1 | Par que satisfaz R-05 e R-06 ao mesmo tempo | Não escolher um tipo: a detecção é interrompida com um erro explícito que identifica o par e o timestamp. Escolher um tipo seria criar uma hierarquia que o enunciado não prevê. A situação não ocorre em nenhum dataset oficial, e o erro torna visível qualquer dado futuro que a exija. | **Requer aprovação** |
+| D1 | Par que satisfaz R-05 e R-06 ao mesmo tempo | Nenhuma regra de negócio e nenhuma interrupção do processamento. A classificação verifica as condições numa ordem fixa, registrada no plano como detalhe de implementação. | Aprovada |
 | D2 | Encontros em timestamps consecutivos | Um encontro por timestamp (R-09). | Aprovada |
-| D3 | Ordem dentro do timestamp | Menor id, depois maior id (O-02). | Requer aprovação |
+| D3 | Ordenação | Timestamps em ordem cronológica (O-01); no mesmo timestamp, menor id e depois maior id, numericamente (O-02); ids em ordem crescente em `monitoradosEncontro`. | Aprovada |
 | D4 | Ordem dos ids no encontro | Crescente. | Confirmada pelos 10 exemplos |
 | D5 | Fórmula exata de Haversine | Variante que reproduz os gabaritos bit a bit (plano, seção 4). | Confirmada pelos 10 exemplos |

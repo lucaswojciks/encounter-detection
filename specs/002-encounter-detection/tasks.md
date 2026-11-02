@@ -1,10 +1,9 @@
 # Tarefas 002 — Detecção de encontros
 
-- **Status:** Em revisão. Nenhuma tarefa iniciada.
+- **Status:** Aprovadas. Nenhuma tarefa iniciada.
 - **Spec:** [`spec.md`](spec.md) · **Plano:** [`plan.md`](plan.md)
 
-Pré-requisito: aprovação das decisões D1 e D3 da spec (seção 9). Se alguma mudar, as
-tarefas T03, T04 e T05 devem ser revistas antes da implementação.
+Decisões D1 e D3 aprovadas (spec, seção 9).
 
 Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
@@ -41,10 +40,9 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 - [ ] Concluída
 
-- **Objetivo:** implementar `classifyEncounter` (R-05 a R-07) e o erro de D1.
+- **Objetivo:** implementar `classifyEncounter` (R-05 a R-07).
 - **Arquivos:** `src/encounters/classify.ts`, `test/encounters/classify.test.ts`.
-- **Critérios de conclusão:** as regras do plano (seção 5); erro com timestamp e ids
-  quando R-05 e R-06 valem juntas (ou a política aprovada para D1).
+- **Critérios de conclusão:** as regras do plano (seção 5).
 - **Testes (CA-08):**
   - `faccao`: mesma facção.
   - `generico`: ambos sem facção; facções diferentes; facção × sem facção; pessoa com
@@ -52,16 +50,16 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
   - `protetiva`: `a` lista `b`; `b` lista `a`; ambos se listam; lista com vários ids
     contendo o outro.
   - `medidaProtetiva = true` com lista que não contém o outro → `generico`.
-  - Sobreposição R-05 + R-06 → comportamento de D1.
 - **Dependências:** T01.
 
 ## T04 — Detecção em um grupo
 
 - [ ] Concluída
 
-- **Objetivo:** implementar `detectEncounters` e `ENCOUNTER_DISTANCE_METERS`
-  (plano, seção 6).
-- **Arquivos:** `src/encounters/detect.ts`, `test/encounters/detect.test.ts`.
+- **Objetivo:** implementar a estratégia de referência `allPairs` (`PairSearch`), além de
+  `detectEncounters` e `ENCOUNTER_DISTANCE_METERS` (plano, seção 6).
+- **Arquivos:** `src/encounters/pair-search.ts`, `src/encounters/detect.ts`,
+  `test/encounters/pair-search.test.ts`, `test/encounters/detect.test.ts`.
 - **Critérios de conclusão:** todos os pares `i < j`; limiar estrito; ids ordenados;
   deduplicação por par; ordenação O-02.
 - **Testes:**
@@ -74,6 +72,10 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
   - Ordem O-02 e independência da ordem do input: o mesmo grupo embaralhado produz os
     mesmos encontros.
   - `first.id < second.id` mesmo quando o input traz o maior id primeiro.
+  - `allPairs` visita exatamente `n(n − 1)/2` pares `i < j`, na ordem do input.
+  - Uma estratégia que entrega o mesmo candidato duas vezes não gera duplicatas, e o
+    resultado não depende da estratégia (mesmos encontros com `allPairs` e com uma
+    estratégia que entrega os pares invertidos e embaralhados).
 - **Dependências:** T02, T03.
 
 ## T05 — Detecção sobre o fluxo de grupos

@@ -1,6 +1,6 @@
 # Plano técnico 002 — Detecção de encontros
 
-- **Status:** Em revisão
+- **Status:** Aprovado
 - **Spec:** [`spec.md`](spec.md)
 
 Nada aqui foi implementado. O algoritmo descrito é a **implementação de
@@ -21,7 +21,8 @@ Responsabilidades separadas:
 | ----- | ---------------- | ---------- |
 | Distância | Haversine exata | nada |
 | Classificação | Tipo de um par a partir dos dois registros | tipos da spec 001 |
-| Detecção | Enumerar pares de um grupo, aplicar o limiar, deduplicar e ordenar | distância, classificação |
+| Busca de pares | Enumerar os pares candidatos de um grupo (referência: todos os pares `i < j`; spec 003: spatial hashing) | tipos da spec 001 |
+| Detecção | Validar cada candidato com a distância exata e o limiar, deduplicar, classificar e ordenar | distância, classificação, busca |
 | Fluxo | Aplicar a detecção a cada grupo de um `AsyncIterable` | detecção |
 | Mapeamento de saída | Converter o encontro interno no objeto do gabarito | nada além do tipo `Encounter` |
 
@@ -34,7 +35,8 @@ src/encounters/
 ├── types.ts            # EncounterType, Encounter
 ├── haversine.ts        # EARTH_RADIUS_METERS, haversineDistance()
 ├── classify.ts         # classifyEncounter(a, b)
-├── detect.ts           # ENCOUNTER_DISTANCE_METERS, detectEncounters(group)
+├── pair-search.ts      # PairSearch, allPairs (estratégia de referência)
+├── detect.ts           # ENCOUNTER_DISTANCE_METERS, detectEncounters(group, search)
 ├── detect-stream.ts    # detectDatasetEncounters(groups)
 └── output.ts           # OutputEncounter, toOutputEncounter()
 test/encounters/        # testes unitários, de integração e de aceitação
@@ -118,69 +120,91 @@ Propriedades:
 
 ```ts
 export function classifyEncounter(a: LocationRecord, b: LocationRecord): EncounterType {
-  const protective = a.restrictedIds.includes(b.id) || b.restrictedIds.includes(a.id);
-  const sameFaction = a.faction !== null && a.faction === b.faction;
-  if (protective && sameFaction) {
-    throw new EncounterClassificationError(a, b); // D1: tipo não definido pelo enunciado
-  }
-  if (protective) return "protetiva";
-  if (sameFaction) return "faccao";
+  if (a.restrictedIds.includes(b.id) || b.restrictedIds.includes(a.id)) return "protetiva";
+  if (a.faction !== null && a.faction === b.faction) return "faccao";
   return "generico";
 }
 ```
 
-- Os dois `if` independentes não definem uma precedência: o caso em que as duas
-  condições são verdadeiras é tratado à parte (D1). Se a revisão escolher outra
-  política para D1, só esta função muda.
+- **Detalhe de implementação (D1):** a função precisa devolver um único tipo, então
+  as condições são verificadas numa ordem fixa: R-05, depois R-06. A ordem segue
+  apenas a numeração da spec. **Não é uma regra de negócio**, não foi validada pelos
+  gabaritos e não tem teste que a trave como requisito: um par que satisfaça as duas
+  condições não ocorre em nenhum dataset oficial. A ordem também mantém a função
+  determinística.
 - `includes` em arrays de 1 elemento (todos os dados observados) é mais barato que
   montar um `Set` por registro. A classificação só roda para pares abaixo de 20 m,
   que são raros (no máximo 21 em 1 milhão de registros nos datasets 1–5), então o
   custo é desprezível.
-- `EncounterClassificationError` informa o timestamp e os dois ids.
 
 ## 6. Detecção de referência
 
+A detecção é dividida em duas partes, para que a spec 003 troque apenas a busca:
+
+1. **Estratégia de busca** (`PairSearch`): enumera os pares **candidatos** de um grupo.
+2. **Validação** (`detectEncounters`): para cada candidato, aplica R-02, a distância
+   exata, o limiar, a deduplicação e a classificação, e no fim ordena.
+
 ```ts
+/** Calls `visit` for each candidate pair of records in the group. */
+export type PairSearch = (
+  records: readonly LocationRecord[],
+  visit: (a: LocationRecord, b: LocationRecord) => void,
+) => void;
+
+/** Reference strategy: every pair i < j, in input order. */
+export const allPairs: PairSearch = (records, visit) => {
+  for (let i = 0; i < records.length; i++) {
+    for (let j = i + 1; j < records.length; j++) visit(records[i], records[j]);
+  }
+};
+
 export const ENCOUNTER_DISTANCE_METERS = 20;
 
-export function detectEncounters(group: TimestampGroup): Encounter[] {
+export function detectEncounters(group: TimestampGroup, search: PairSearch = allPairs): Encounter[] {
   const encounters: Encounter[] = [];
-  const seenPairs = new Set<string>();       // R-08 / R-10
-  const records = group.records;
-
-  for (let i = 0; i < records.length; i++) {
-    for (let j = i + 1; j < records.length; j++) {
-      const [first, second] = orderById(records[i], records[j]);
-      if (first.id === second.id) continue;  // R-02
-      const distance = haversineDistance(first.latitude, first.longitude, second.latitude, second.longitude);
-      if (!(distance < ENCOUNTER_DISTANCE_METERS)) continue;   // R-04
-      const key = `${first.id}:${second.id}`;
-      if (seenPairs.has(key)) continue;      // primeira combinação vence (R-10)
-      seenPairs.add(key);
-      encounters.push({ type: classifyEncounter(first, second), timestamp: group.timestamp,
-                        first, second, distanceMeters: distance });
-    }
-  }
-  return encounters.sort(byIds);              // O-02
+  const seenPairs = new Set<string>();             // R-08 / R-10
+  search(group.records, (a, b) => {
+    if (a.id === b.id) return;                     // R-02
+    const [first, second] = a.id < b.id ? [a, b] : [b, a];
+    const distance = haversineDistance(first.latitude, first.longitude, second.latitude, second.longitude);
+    if (!(distance < ENCOUNTER_DISTANCE_METERS)) return;   // R-04
+    const key = `${first.id}:${second.id}`;
+    if (seenPairs.has(key)) return;                // primeira combinação vence (R-10)
+    seenPairs.add(key);
+    encounters.push({ type: classifyEncounter(first, second), timestamp: group.timestamp,
+                      first, second, distanceMeters: distance });
+  });
+  return encounters.sort(byIds);                   // O-02
 }
 ```
 
 Decisões:
 
-- **Todos os pares `i < j`.** Cada par de posições é avaliado uma vez, e o par
-  `(i, j)` nunca é visitado como `(j, i)`. Por construção, não há duplicatas sem
-  ids repetidos.
+- **Callback em vez de gerador para a busca.** Um gerador que devolve uma tupla por
+  par alocaria um objeto por distância calculada (39,5 milhões no dataset 5). O
+  callback não aloca nada por par. A troca da estratégia continua sendo um parâmetro.
+- **Referência = todos os pares `i < j`.** Cada par de posições é avaliado uma vez, e o
+  par `(i, j)` nunca é visitado como `(j, i)`. Sem ids repetidos, não há duplicatas
+  por construção.
+- **Distância exata sempre valida o candidato.** Uma estratégia de busca só pode
+  **reduzir** os candidatos. A decisão de encontro é sempre da fórmula exata
+  (CLAUDE.md: validar candidatos espaciais com a distância exata).
 - **Deduplicação só sobre encontros.** O `Set` recebe uma chave apenas quando a
-  distância está abaixo do limiar. Com ids únicos (todos os dados oficiais), ele tem
-  no máximo poucos elementos por grupo e nunca descarta nada; ele existe para
-  garantir R-08 quando a spec 001 entrega ids repetidos. A alternativa de verificar
-  ids únicos antes da enumeração exigiria montar um `Set` com todos os ids de cada
-  grupo, um custo `O(n)` por grupo mesmo quando não há encontro.
-- **Primeira combinação vence (R-10).** Com ids repetidos, as combinações são
-  visitadas na ordem do input, e a primeira abaixo do limiar é a registrada.
+  distância está abaixo do limiar, então fica vazio na maioria dos grupos. Ele garante
+  R-08 quando a spec 001 entrega ids repetidos, e também quando uma estratégia da
+  spec 003 visitar o mesmo par mais de uma vez (por exemplo, por células vizinhas).
+  A alternativa de verificar ids únicos antes da enumeração exigiria montar um `Set`
+  com todos os ids de cada grupo, um custo `O(n)` por grupo mesmo quando não há
+  encontro.
+- **Primeira combinação vence (R-10).** Com ids repetidos, a referência visita as
+  combinações na ordem do input, e a primeira abaixo do limiar é a registrada. Uma
+  estratégia que visite os pares em outra ordem pode escolher outra combinação nesse
+  caso; a spec 003 deve preservar essa ordem ou documentar a diferença. O caso não
+  ocorre nos dados oficiais.
 - **Ordenação O-02.** Ordenar os encontros de um grupo (poucos) por
-  `(first.id, second.id)` é barato e torna a saída independente da ordem de
-  enumeração. A spec 003 pode visitar os pares em outra ordem sem mudar a saída.
+  `(first.id, second.id)`, numericamente, torna a saída independente da ordem de
+  enumeração.
 - **`!(distance < 20)`** também rejeita `NaN`, que não ocorre com coordenadas
   validadas pela spec 001.
 - **Síncrona e pura.** `detectEncounters` não faz I/O nem guarda estado entre
@@ -217,7 +241,7 @@ for await (const encounter of detectDatasetEncounters(readDataset(path))) { … 
 - Um grupo por vez, sem estado entre grupos (RI-01). A contrapressão da spec 001 se
   mantém: o próximo grupo só é lido quando os encontros do atual foram consumidos
   (RI-02).
-- Erros de entrada (`DatasetError`) e o erro de D1 se propagam ao consumidor pelo
+- Erros de entrada (`DatasetError`) se propagam ao consumidor pelo
   `for await`.
 
 ## 8. Mapeamento de saída
@@ -282,7 +306,7 @@ Todos com `node:test` e `node:assert/strict`.
 | ----- | ---- | ----- |
 | Unitário | `haversineDistance`: 10 distâncias oficiais com `===` nos dois sentidos (CA-03); distância zero; 1° de latitude = `R·π/180` | Posições de `respostas1.json` e `respostas2.json` |
 | Unitário | Limiar (CA-04): pares geométricos logo abaixo e logo acima de 20 m, construídos no teste ajustando a latitude até a fórmula cruzar o limiar; `ENCOUNTER_DISTANCE_METERS === 20` | Sintético |
-| Unitário | `classifyEncounter` (CA-08): mesma facção; facções diferentes; facção × sem facção; restrição listada por `a`, por `b`, pelos dois; pessoa com restrição × terceiro; sobreposição (D1) | Registros sintéticos |
+| Unitário | `classifyEncounter` (CA-08): mesma facção; facções diferentes; facção × sem facção; restrição listada por `a`, por `b`, pelos dois; pessoa com restrição × terceiro | Registros sintéticos |
 | Unitário | `detectEncounters`: R-02 e R-10 com ids repetidos (CA-06); ordem O-02; grupo de 0, 1 e 2 registros; independência da ordem do input | Grupos sintéticos |
 | Unitário | `toOutputEncounter` (CA-09): ordem das chaves (`Object.keys`), ids crescentes, valores sem alteração | Sintético |
 | Integração | `detectDatasetEncounters` sobre `groupByTimestamp`: registros próximos em timestamps diferentes (CA-05); par próximo em 3 timestamps consecutivos (CA-07); contrapressão (CA-10) | Linhas sintéticas |
@@ -302,7 +326,7 @@ Números só serão registrados depois de executados.
 
 - **Desempenho nos datasets 6 e 7:** 396 e 714 milhões de distâncias. É a motivação
   da spec 003; esta referência não tem meta de tempo.
-- **D1 pendente:** se a revisão preferir outra política, mudam apenas
-  `classifyEncounter` e seus testes.
+- **Classificação simultânea (D1):** se o enunciado vier a definir o tipo de um par
+  que satisfaça R-05 e R-06, só `classifyEncounter` e seus testes mudam.
 - **Dependência da fórmula exata:** a igualdade com os gabaritos depende da variante
   da seção 4. Qualquer refatoração da função precisa manter os testes de CA-03.
