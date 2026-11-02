@@ -1,12 +1,23 @@
-// Diagnostic measurement of dataset reading (spec 001, CA-10).
-// Usage: node dist/scripts/measure-dataset.js <dataset> [...datasets]
+// Diagnostic measurement of dataset reading (spec 001, CA-10 and section 12).
+// Usage: node dist/scripts/measure-dataset.js [--reader bytes|lines] <dataset> [...datasets]
+// `--reader` selects `readDataset` (bytes, default) or the readline reference
+// `readDatasetLines` (lines).
 // With `node --expose-gc`, heap is also sampled after garbage collection
 // (retained memory); timings in that mode are not representative.
 
 import { stat } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 
-import { readDataset } from "../src/dataset/read-dataset.js";
+import { readDataset as readDatasetBytes, readDatasetLines } from "../src/dataset/read-dataset.js";
+
+const READERS = { bytes: readDatasetBytes, lines: readDatasetLines };
+const args = process.argv.slice(2);
+let readerName = "bytes";
+if (args[0] === "--reader") {
+  readerName = args[1] ?? "";
+  args.splice(0, 2);
+}
+const readDataset = READERS[readerName as keyof typeof READERS];
 
 const SAMPLE_EVERY_GROUPS = 1000;
 const MIB = 1024 * 1024;
@@ -41,6 +52,7 @@ async function measure(path: string) {
 
   return {
     file: path,
+    reader: readerName,
     sizeMiB: +(size / MIB).toFixed(1),
     records,
     groups,
@@ -54,12 +66,11 @@ async function measure(path: string) {
   };
 }
 
-const paths = process.argv.slice(2);
-if (paths.length === 0) {
-  process.stderr.write("Usage: node dist/scripts/measure-dataset.js <dataset> [...datasets]\n");
+if (args.length === 0 || readDataset === undefined) {
+  process.stderr.write("Usage: node dist/scripts/measure-dataset.js [--reader bytes|lines] <dataset> [...datasets]\n");
   process.exitCode = 1;
 } else {
-  for (const path of paths) {
+  for (const path of args) {
     process.stdout.write(`${JSON.stringify(await measure(path))}\n`);
   }
 }

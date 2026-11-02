@@ -1,7 +1,8 @@
-// Equivalence check between pair search strategies (spec 003 T06, spec 004 T06).
+// Equivalence check between pair search strategies (spec 003 T06 and section 7, spec 004 T06).
 // Usage: node dist/scripts/compare-strategies.js [--every <k>] <dataset> [...datasets]
-// For each compared timestamp group, the encounters found with `spatialHash`
-// must be deep-equal to those found with the brute-force reference `allPairs`.
+// For each compared timestamp group, the encounters found with `spatialHash` and
+// with `latitudeSweep` must be deep-equal to those found with the brute-force
+// reference `allPairs`.
 // `--every k` compares only groups 0, k, 2k, ... and the last group (default 1:
 // every group).
 
@@ -11,8 +12,14 @@ import { readDataset } from "../src/dataset/read-dataset.js";
 import type { TimestampGroup } from "../src/dataset/types.js";
 import { detectEncounters } from "../src/encounters/detect.js";
 import { toOutputEncounter } from "../src/encounters/output.js";
-import { allPairs } from "../src/encounters/pair-search.js";
+import { latitudeSweep } from "../src/encounters/latitude-sweep.js";
+import { allPairs, type PairSearch } from "../src/encounters/pair-search.js";
 import { spatialHash } from "../src/encounters/spatial-hash.js";
+
+const OPTIMIZED: readonly [string, PairSearch][] = [
+  ["spatialHash", spatialHash],
+  ["latitudeSweep", latitudeSweep],
+];
 
 interface Comparison {
   groups: number;
@@ -24,22 +31,26 @@ interface Comparison {
 function compareGroup(group: TimestampGroup, comparison: Comparison): void {
   comparison.comparedGroups++;
   const reference = detectEncounters(group, allPairs);
-  const optimized = detectEncounters(group, spatialHash);
   comparison.encounters += reference.length;
-  // Compare both the internal encounters and their output form.
-  if (
-    isDeepStrictEqual(optimized, reference) &&
-    isDeepStrictEqual(optimized.map(toOutputEncounter), reference.map(toOutputEncounter))
-  ) {
-    return;
+  let mismatched = false;
+  for (const [name, search] of OPTIMIZED) {
+    const optimized = detectEncounters(group, search);
+    // Compare both the internal encounters and their output form.
+    if (
+      isDeepStrictEqual(optimized, reference) &&
+      isDeepStrictEqual(optimized.map(toOutputEncounter), reference.map(toOutputEncounter))
+    ) {
+      continue;
+    }
+    mismatched = true;
+    if (comparison.mismatchedGroups < 5) {
+      process.stdout.write(
+        `  mismatch at ${group.timestamp}: allPairs=${JSON.stringify(reference.map(toOutputEncounter))} ` +
+          `${name}=${JSON.stringify(optimized.map(toOutputEncounter))}\n`,
+      );
+    }
   }
-  comparison.mismatchedGroups++;
-  if (comparison.mismatchedGroups <= 5) {
-    process.stdout.write(
-      `  mismatch at ${group.timestamp}: allPairs=${JSON.stringify(reference.map(toOutputEncounter))} ` +
-        `spatialHash=${JSON.stringify(optimized.map(toOutputEncounter))}\n`,
-    );
-  }
+  if (mismatched) comparison.mismatchedGroups++;
 }
 
 async function compare(path: string, every: number): Promise<boolean> {

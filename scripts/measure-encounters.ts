@@ -1,5 +1,5 @@
-// Diagnostic measurement of encounter detection (spec 002 T08/T09, spec 003 T07).
-// Usage: node dist/scripts/measure-encounters.js [--search all|spatial] [--count] [--list] <dataset> [...datasets]
+// Diagnostic measurement of encounter detection (spec 002 T08/T09, spec 003 T07 and section 7).
+// Usage: node dist/scripts/measure-encounters.js [--search all|spatial|sweep] [--count] [--list] <dataset> [...datasets]
 // `--search` selects the pair search strategy (default: all).
 // `--count` counts candidate pairs and haversine evaluations; it wraps the
 // strategy, so its timings are not representative.
@@ -11,13 +11,14 @@ import { performance } from "node:perf_hooks";
 
 import { readDataset } from "../src/dataset/read-dataset.js";
 import { detectEncounters } from "../src/encounters/detect.js";
+import { latitudeSweep } from "../src/encounters/latitude-sweep.js";
 import { allPairs, type PairSearch } from "../src/encounters/pair-search.js";
 import { spatialHash } from "../src/encounters/spatial-hash.js";
 import type { Encounter, EncounterType } from "../src/encounters/types.js";
 
 const SAMPLE_EVERY_GROUPS = 1000;
 const MIB = 1024 * 1024;
-const STRATEGIES: Record<string, PairSearch> = { all: allPairs, spatial: spatialHash };
+const STRATEGIES: Record<string, PairSearch> = { all: allPairs, spatial: spatialHash, sweep: latitudeSweep };
 
 const gc = (globalThis as { gc?: () => void }).gc;
 
@@ -113,7 +114,7 @@ function parseArgs(args: readonly string[]): { options: Options; paths: string[]
 const parsed = parseArgs(process.argv.slice(2));
 if (parsed === undefined) {
   process.stderr.write(
-    "Usage: node dist/scripts/measure-encounters.js [--search all|spatial] [--count] [--list] <dataset> [...datasets]\n",
+    "Usage: node dist/scripts/measure-encounters.js [--search all|spatial|sweep] [--count] [--list] <dataset> [...datasets]\n",
   );
   process.exitCode = 1;
 } else {
