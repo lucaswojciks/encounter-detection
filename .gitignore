@@ -153,6 +153,3 @@ Thumbs.db
 # Encounter outputs: only the final JSON files are versioned
 outputs/*
 !outputs/encontros-*.json
-
-# Delivery package (generated from git archive)
-delivery/
