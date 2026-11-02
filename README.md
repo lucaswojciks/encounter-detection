@@ -29,9 +29,24 @@ A aplicação aceita qualquer arquivo compatível com o formato de entrada, não
 
 ### Obtendo os datasets
 
-Os arquivos oficiais estão disponíveis no [bucket público da Spacecom](https://bucket-projeto-trainee.s3.sa-east-1.amazonaws.com/dataset1.txt), com nomes de `dataset1.txt` até `dataset7.txt`. Baixe os arquivos desejados e salve-os, por exemplo, na pasta `data/` do projeto. Essa pasta não é versionada.
+Os arquivos oficiais do desafio podem ser baixados individualmente pelos links abaixo.
 
-Se os arquivos já estiverem disponíveis na sua máquina, basta informar o caminho correspondente no comando de execução. **Não é necessário acesso à internet durante o processamento.**
+#### Datasets de entrada
+
+- [dataset1.txt](https://bucket-projeto-trainee.s3.sa-east-1.amazonaws.com/dataset1.txt)
+- [dataset2.txt](https://bucket-projeto-trainee.s3.sa-east-1.amazonaws.com/dataset2.txt)
+- [dataset3.txt](https://bucket-projeto-trainee.s3.sa-east-1.amazonaws.com/dataset3.txt)
+- [dataset4.txt](https://bucket-projeto-trainee.s3.sa-east-1.amazonaws.com/dataset4.txt)
+- [dataset5.txt](https://bucket-projeto-trainee.s3.sa-east-1.amazonaws.com/dataset5.txt)
+- [dataset6.txt](https://bucket-projeto-trainee.s3.sa-east-1.amazonaws.com/dataset6.txt)
+- [dataset7.txt](https://bucket-projeto-trainee.s3.sa-east-1.amazonaws.com/dataset7.txt)
+
+#### Respostas de referência
+
+- [respostas1.json](https://bucket-projeto-trainee.s3.sa-east-1.amazonaws.com/respostas1.json)
+- [respostas2.json](https://bucket-projeto-trainee.s3.sa-east-1.amazonaws.com/respostas2.json)
+
+Salve os arquivos desejados na pasta `data/` do projeto, que não é versionada, ou em qualquer outro diretório. Basta informar o caminho correspondente no comando de execução: a aplicação processa arquivos locais e **não precisa de acesso à internet durante o processamento.**
 
 ## Formato de entrada e saída
 
