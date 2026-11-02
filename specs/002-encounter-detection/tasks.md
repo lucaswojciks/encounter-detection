@@ -1,6 +1,6 @@
 # Tarefas 002 — Detecção de encontros
 
-- **Status:** Aprovadas. Nenhuma tarefa iniciada.
+- **Status:** Todas as tarefas concluídas em 2026-11-02; implementação em revisão.
 - **Spec:** [`spec.md`](spec.md) · **Plano:** [`plan.md`](plan.md)
 
 Decisões D1 e D3 aprovadas (spec, seção 9).
@@ -11,7 +11,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T01 — Tipos do domínio de encontros
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** definir `EncounterType` e `Encounter` (plano, seção 3).
 - **Arquivos:** `src/encounters/types.ts`.
@@ -22,7 +22,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T02 — Haversine
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** implementar `haversineDistance` e `EARTH_RADIUS_METERS` exatamente
   como no plano, seção 4.
@@ -32,13 +32,15 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
   - As 10 posições e distâncias lidas de `test/fixtures/official/respostas*.json`,
     nos dois sentidos de argumento.
   - Mesmo ponto → `0`.
+  - Par 31–43 do dataset 4 → `10.584413373886989`, fixando o sin² como termo único
+    (plano, seção 4; decisão técnica, não gabarito).
   - 1° de latitude no mesmo meridiano → `6371000 * Math.PI / 180`, com tolerância de
     10⁻⁶ m (valor analítico, não gabarito).
 - **Dependências:** nenhuma.
 
 ## T03 — Classificação
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** implementar `classifyEncounter` (R-05 a R-07).
 - **Arquivos:** `src/encounters/classify.ts`, `test/encounters/classify.test.ts`.
@@ -54,7 +56,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T04 — Detecção em um grupo
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** implementar a estratégia de referência `allPairs` (`PairSearch`), além de
   `detectEncounters` e `ENCOUNTER_DISTANCE_METERS` (plano, seção 6).
@@ -80,7 +82,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T05 — Detecção sobre o fluxo de grupos
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** implementar `detectDatasetEncounters` (plano, seção 7).
 - **Arquivos:** `src/encounters/detect-stream.ts`,
@@ -98,7 +100,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T06 — Mapeamento para o formato de saída
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** implementar `OutputEncounter` e `toOutputEncounter` (plano, seção 8).
 - **Arquivos:** `src/encounters/output.ts`, `test/encounters/output.test.ts`.
@@ -111,7 +113,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T07 — Aceitação com os datasets oficiais
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** CA-01 e CA-02.
 - **Arquivos:** `test/encounters/official-encounters.test.ts`.
@@ -125,10 +127,10 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T08 — Verificação com os datasets 3 a 5
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** CA-07 e CA-11 com dados reais sem gabarito.
-- **Arquivos:** script de verificação em `scripts/` e registro dos resultados no
+- **Arquivos:** `scripts/measure-encounters.ts` (`--list`) e registro dos resultados no
   `plan.md`.
 - **Critérios de conclusão:** 10, 15 e 21 encontros nos datasets 3, 4 e 5; par 28–31
   do dataset 3 em 01:00:30, 01:00:35 e 01:00:40. Resultados registrados com data,
@@ -138,18 +140,18 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T09 — Medição diagnóstica
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** registrar tempo, memória, distâncias calculadas e encontros dos
   datasets 1 a 5, como referência para a spec 003.
-- **Arquivos:** `scripts/` (extensão do script de medição), `plan.md`.
+- **Arquivos:** `scripts/measure-encounters.ts`, `plan.md` (seção 12).
 - **Critérios de conclusão:** números apenas de execuções reais, com ambiente e
   comando; nenhuma meta de desempenho definida.
 - **Dependências:** T05.
 
 ## T10 — Revisão da documentação
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** alinhar spec, plano, tarefas e `specs/README.md` com a implementação.
 - **Arquivos:** `specs/002-encounter-detection/*.md`, `specs/README.md`.

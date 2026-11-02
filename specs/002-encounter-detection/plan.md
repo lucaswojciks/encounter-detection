@@ -1,9 +1,9 @@
 # Plano técnico 002 — Detecção de encontros
 
-- **Status:** Aprovado
+- **Status:** Implementado (em revisão)
 - **Spec:** [`spec.md`](spec.md)
 
-Nada aqui foi implementado. O algoritmo descrito é a **implementação de
+O algoritmo descrito é a **implementação de
 referência**: simples, exata e fácil de verificar. Ele é o critério de correção da
 otimização espacial da spec 003, que deve produzir exatamente a mesma saída.
 
@@ -87,8 +87,7 @@ export function haversineDistance(lat1: number, lon1: number, lat2: number, lon2
   const sinHalfDeltaLat = Math.sin(toRadians(lat2 - lat1) / 2);
   const sinHalfDeltaLon = Math.sin(toRadians(lon2 - lon1) / 2);
   const a =
-    sinHalfDeltaLat * sinHalfDeltaLat +
-    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * sinHalfDeltaLon * sinHalfDeltaLon;
+    sinHalfDeltaLat ** 2 + Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * sinHalfDeltaLon ** 2;
   return 2 * EARTH_RADIUS_METERS * Math.asin(Math.sqrt(a));
 }
 ```
@@ -100,8 +99,18 @@ Detalhes que mudam o resultado no último bit e devem ser mantidos:
 - A conversão é `(x * Math.PI) / 180`. Usar `x * (Math.PI / 180)` ou `x / 180 * Math.PI`
   muda 1 a 3 dos 10 valores.
 - O final é `2 * R * asin(√a)`. A forma `atan2(√a, √(1 − a))` muda 1 dos 10 valores.
-- `x * x`, `x ** 2` e `Math.pow(x, 2)` deram o mesmo resultado nos 10 casos. O plano
-  usa `x * x`, a forma mais direta.
+- Cada sin² é **um termo** multiplicado pelo produto dos cossenos:
+  `(cos₁ · cos₂) · sin²(Δλ/2)`. Elevar ao quadrado com `x * x`, `x ** 2` ou
+  `Math.pow(x, 2)` dá o mesmo valor (testado em 10⁶ valores aleatórios); a
+  implementação usa `** 2`.
+- **Correção feita na implementação:** a primeira versão deste plano expandia o
+  termo como `cos₁ * cos₂ * s * s`, que o JavaScript associa como
+  `((cos₁ · cos₂) · s) · s`. Essa forma também reproduz os 10 gabaritos, mas difere
+  em 1 ULP em 4 de 67 pares a menos de 40 m nos datasets 1–5 (por exemplo, par 31–43
+  do dataset 4: 10.584413373886987 contra 10.584413373886989). Os gabaritos não
+  distinguem as duas formas. A escolhida é a variante validada na análise (seção 3.3)
+  e corresponde à notação da fórmula, com sin² como um único termo. Um teste fixa essa
+  escolha. Outra forma, `cos₁ · (cos₂ · sin²)`, erra 1 dos 10 gabaritos.
 
 Propriedades:
 
@@ -318,9 +327,9 @@ referência dos datasets 1 e 2. Para os datasets 3–5 (sem gabarito), a referê
 força bruta da análise exploratória, escrita separadamente e fora do código de
 produção.
 
-**Medição:** o script de medição da spec 001 será estendido (ou complementado) para
-contar encontros e distâncias calculadas e medir tempo e memória com os datasets 1–5.
-Números só serão registrados depois de executados.
+**Medição:** `scripts/measure-encounters.ts` complementa o script da spec 001,
+contando encontros e distâncias calculadas e medindo tempo de detecção, tempo total e
+memória. Resultados na seção 12.
 
 ## 11. Riscos
 
@@ -330,3 +339,82 @@ Números só serão registrados depois de executados.
   que satisfaça R-05 e R-06, só `classifyEncounter` e seus testes mudam.
 - **Dependência da fórmula exata:** a igualdade com os gabaritos depende da variante
   da seção 4. Qualquer refatoração da função precisa manter os testes de CA-03.
+- **Último bit nos datasets sem gabarito:** duas associações do produto reproduzem os
+  10 gabaritos e diferem em 1 ULP em alguns pares dos datasets 4 e 5 (seção 4). Se
+  houver um gabarito oficial para os datasets 3–7, ele pode mostrar que a forma
+  escolhida não é a do avaliador. O conjunto de encontros não muda: nenhum par dos
+  datasets 1–5 está a menos de 1 ULP de 20 m.
+
+## 12. Resultados da implementação
+
+### 12.1 Validação com os gabaritos (CA-01 a CA-03)
+
+Pipeline `readDataset → detectDatasetEncounters → toOutputEncounter`, em testes
+automatizados:
+
+| Dataset | Encontros oficiais | Detectados | Iguais (`deepStrictEqual`, na ordem) | Distâncias bit a bit | `JSON.stringify(lista, null, 2)` igual ao arquivo oficial |
+| ------- | -----------------: | ---------: | ------------------------------------ | -------------------- | --------------------------------------------------------- |
+| 1 | 4 | 4 | 4/4 | 4/4 | sim |
+| 2 | 6 | 6 | 6/6 | 6/6 | sim |
+
+### 12.2 Datasets sem gabarito (CA-07, CA-11)
+
+Comparação com a força bruta independente da análise exploratória (script separado,
+fora do repositório), linha a linha, por timestamp, par, tipo e distância:
+
+| Dataset | Encontros | `generico` | `faccao` | `protetiva` | Igual à referência independente |
+| ------- | --------: | ---------: | -------: | ----------: | ------------------------------- |
+| 1 | 4 | 2 | 1 | 1 | sim |
+| 2 | 6 | 3 | 2 | 1 | sim |
+| 3 | 10 | 5 | 3 | 2 | sim |
+| 4 | 15 | 7 | 5 | 3 | sim |
+| 5 | 21 | 10 | 7 | 4 | sim |
+
+O par 28–31 do dataset 3 gera três encontros, em 01:00:30 (12,87 m), 01:00:35
+(8,70 m) e 01:00:40 (13,30 m), como define R-09.
+
+### 12.3 Medição diagnóstica (T09)
+
+Medição **diagnóstica**, sem metas. Executada em 2026-11-02 com Node.js 24.19.0,
+Windows 11 Pro, AMD Ryzen 5 5600X, 16 GB de RAM e SSD. Cada execução roda em um
+processo separado:
+
+```
+npm run build
+node dist/scripts/measure-encounters.js data/datasetN.txt
+node --expose-gc dist/scripts/measure-encounters.js data/datasetN.txt   # heap retido
+```
+
+- **Detecção:** soma do tempo das chamadas a `detectEncounters`, medido com
+  `performance.now()` por grupo.
+- **Total:** leitura, parsing, agrupamento e detecção, do início ao fim do
+  `for await`.
+
+| Dataset | Distâncias calculadas | Detecção | Total | Distâncias/s (detecção) | Pico de heap | RSS máximo |
+| ------- | --------------------: | -------: | ----: | ----------------------: | -----------: | ---------: |
+| 1 | 22 500 | 0,005 s | 0,018 s | ≈4,9 milhões | 5,6 MiB | 45,9 MiB |
+| 2 | 237 500 | 0,016 s | 0,052 s | ≈14,6 milhões | 6,8 MiB | 48,4 MiB |
+| 3 | 1 950 000 | 0,087 s | 0,194 s | ≈22,3 milhões | 8,3 MiB | 52,1 MiB |
+| 4 | 11 800 590 | 0,506 s | 0,893 s | ≈23,3 milhões | 10,7 MiB | 60,2 MiB |
+| 5 | 39 500 000 | 1,683–1,701 s (3 execuções) | 2,586–2,622 s | ≈23,2–23,5 milhões | 13,6–13,7 MiB | 61,1–73,5 MiB |
+
+- Heap retido após `gc()` (com `--expose-gc`): 5,0 MiB no dataset 3 e 5,2 MiB no
+  dataset 5. A memória continua limitada com a detecção (RI-03).
+- Leitura isolada do dataset 5 (script da spec 001) na mesma sessão: 0,915 s, coerente
+  com a diferença entre o total e a detecção (≈0,92 s).
+- Nos datasets pequenos, o throughput é menor por causa do aquecimento do JIT.
+- Os datasets 6 e 7 não foram medidos (não estão disponíveis localmente). Pela tabela
+  da seção 9, eles exigem cerca de 10 e 18 vezes mais distâncias que o dataset 5. Não
+  há medição que confirme a extrapolação.
+
+### 12.4 Notas de implementação
+
+- `PairSearch` é um callback `(records, visit) => void`; `allPairs` é a estratégia de
+  referência, e `detectEncounters(group, search = allPairs)` aceita outra estratégia
+  sem mudar distância, limiar, deduplicação, classificação ou ordenação.
+- `detectDatasetEncounters(groups, search = allPairs)` repassa a estratégia.
+- Um teste verifica que a fórmula retorna exatamente 20 para dois pontos encontrados
+  por bisseção, e que esse par **não** é encontro. Com `<=` no lugar de `<`, dois
+  testes falham (verificado com a alteração temporária do código).
+- A classificação de um par que satisfaça R-05 e R-06 não tem teste, por decisão D1:
+  a ordem de verificação é um detalhe de implementação, não um requisito.

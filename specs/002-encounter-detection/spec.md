@@ -1,6 +1,6 @@
 # Spec 002 — Detecção de encontros
 
-- **Status:** Aprovada
+- **Status:** Implementada (em revisão)
 - **Depende de:** [Spec 001](../001-dataset-processing/spec.md) (grupos por timestamp)
 - **Documentos relacionados:** [`plan.md`](plan.md), [`tasks.md`](tasks.md),
   [`../001-dataset-processing/dataset-analysis.md`](../001-dataset-processing/dataset-analysis.md)
