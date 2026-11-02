@@ -1,7 +1,7 @@
 # Spec 003 — Otimização espacial
 
-- **Status:** Implementada; varredura por latitude (seção 7) implementada na branch
-  `perf/optimize-dataset-processing`
+- **Status:** Implementada e integrada à `main`, incluindo a varredura por latitude
+  (seção 7)
 - **Depende de:** [Spec 002](../002-encounter-detection/spec.md) (detector de referência e
   interface `PairSearch`)
 - **Documentos relacionados:** [`plan.md`](plan.md), [`tasks.md`](tasks.md)

@@ -13,7 +13,7 @@ specs/
     └── tasks.md   # Implementation and validation tasks
 ```
 
-## Planned features
+## Features
 
 | ID  | Directory                    | Status      |
 | --- | ---------------------------- | ----------- |

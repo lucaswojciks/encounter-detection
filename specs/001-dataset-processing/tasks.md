@@ -1,7 +1,7 @@
 # Tarefas 001 — Processamento de datasets
 
-- **Status:** T01–T10 concluídas em 2026-11-02 e integradas à `main`; T11–T15
-  (leitura a partir de bytes) concluídas na branch `perf/optimize-dataset-processing`.
+- **Status:** Todas as tarefas concluídas em 2026-11-02 e integradas à `main`
+  (T11–T15: leitura a partir de bytes).
 - **Spec:** [`spec.md`](spec.md) · **Plano:** [`plan.md`](plan.md)
 
 Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.

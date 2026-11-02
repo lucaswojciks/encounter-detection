@@ -1,7 +1,7 @@
 # Tarefas 003 — Otimização espacial
 
-- **Status:** T01–T09 concluídas em 2026-11-02 e integradas à `main`; T10–T13
-  (varredura por latitude) concluídas na branch `perf/optimize-dataset-processing`.
+- **Status:** Todas as tarefas concluídas em 2026-11-02 e integradas à `main`
+  (T10–T13: varredura por latitude).
 - **Spec:** [`spec.md`](spec.md) · **Plano:** [`plan.md`](plan.md)
 
 Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.

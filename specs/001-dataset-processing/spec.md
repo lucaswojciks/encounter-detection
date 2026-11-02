@@ -1,7 +1,7 @@
 # Spec 001 — Processamento de datasets
 
-- **Status:** Implementada; leitura a partir de bytes (seção 12) implementada na
-  branch `perf/optimize-dataset-processing`
+- **Status:** Implementada e integrada à `main`, incluindo a leitura a partir de bytes
+  (seção 12)
 - **Documentos relacionados:** [`plan.md`](plan.md), [`tasks.md`](tasks.md),
   [`dataset-analysis.md`](dataset-analysis.md)
 
