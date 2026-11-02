@@ -1,6 +1,6 @@
 # Plano técnico 003 — Otimização espacial
 
-- **Status:** Implementado (em revisão)
+- **Status:** Implementado
 - **Spec:** [`spec.md`](spec.md)
 
 ## 1. Visão geral

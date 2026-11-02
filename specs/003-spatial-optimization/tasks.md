@@ -1,6 +1,6 @@
 # Tarefas 003 — Otimização espacial
 
-- **Status:** Todas as tarefas concluídas em 2026-11-02; implementação em revisão.
+- **Status:** Todas as tarefas concluídas em 2026-11-02; integrada à `main`.
 - **Spec:** [`spec.md`](spec.md) · **Plano:** [`plan.md`](plan.md)
 
 Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
