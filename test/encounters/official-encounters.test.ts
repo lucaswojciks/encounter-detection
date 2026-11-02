@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import { readDataset } from "../../src/dataset/read-dataset.js";
 import { detectDatasetEncounters } from "../../src/encounters/detect-stream.js";
 import { type OutputEncounter, toOutputEncounter } from "../../src/encounters/output.js";
+import { allPairs, type PairSearch } from "../../src/encounters/pair-search.js";
+import { spatialHash } from "../../src/encounters/spatial-hash.js";
 import { FIXTURES, readOfficialAnswers } from "./official-answers.js";
 
 const CASES = [
@@ -13,18 +15,23 @@ const CASES = [
   { dataset: "dataset2.txt", answers: "respostas2.json", count: 6 },
 ] as const;
 
-async function detect(dataset: string): Promise<OutputEncounter[]> {
+const STRATEGIES: readonly [string, PairSearch][] = [
+  ["allPairs", allPairs],
+  ["spatialHash", spatialHash],
+];
+
+async function detect(dataset: string, search: PairSearch): Promise<OutputEncounter[]> {
   const encounters: OutputEncounter[] = [];
   const path = fileURLToPath(new URL(dataset, FIXTURES));
-  for await (const encounter of detectDatasetEncounters(readDataset(path))) {
+  for await (const encounter of detectDatasetEncounters(readDataset(path), search)) {
     encounters.push(toOutputEncounter(encounter));
   }
   return encounters;
 }
 
-for (const { dataset, answers, count } of CASES) {
-  describe(`official ${dataset}`, async () => {
-    const detected = await detect(dataset);
+for (const [strategy, search] of STRATEGIES) for (const { dataset, answers, count } of CASES) {
+  describe(`official ${dataset} with ${strategy}`, async () => {
+    const detected = await detect(dataset, search);
     const expected = readOfficialAnswers(answers);
 
     test(`reproduces exactly the ${count} official encounters`, () => {
