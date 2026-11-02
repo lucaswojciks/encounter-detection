@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { readDataset } from "../../src/dataset/read-dataset.js";
 import { detectDatasetEncounters } from "../../src/encounters/detect-stream.js";
 import { type OutputEncounter, toOutputEncounter } from "../../src/encounters/output.js";
+import { latitudeSweep } from "../../src/encounters/latitude-sweep.js";
 import { allPairs, type PairSearch } from "../../src/encounters/pair-search.js";
 import { spatialHash } from "../../src/encounters/spatial-hash.js";
 import { FIXTURES, readOfficialAnswers } from "./official-answers.js";
@@ -18,6 +19,7 @@ const CASES = [
 const STRATEGIES: readonly [string, PairSearch][] = [
   ["allPairs", allPairs],
   ["spatialHash", spatialHash],
+  ["latitudeSweep", latitudeSweep],
 ];
 
 async function detect(dataset: string, search: PairSearch): Promise<OutputEncounter[]> {
