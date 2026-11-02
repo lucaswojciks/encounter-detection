@@ -247,23 +247,21 @@ próxima de terceiros) ocorre abaixo de 20 m.
 
 ## 5. Decisões propostas e ambiguidades pendentes
 
-As decisões abaixo **não são observações**: são recomendações para revisão.
-As de classificação e saída pertencem às especificações 002 e 004 e estão aqui só
-para não se perderem.
+As decisões abaixo **não são observações**. As marcadas como **Decidido** foram aprovadas na revisão da spec 001. As demais pertencem às specs 002 e 004 e serão decididas nelas, seguindo a diretriz de implementar apenas regras do enunciado confirmadas pelos gabaritos, sem precedências ou restrições hipotéticas.
 
 | ID  | Ambiguidade | Recomendação | Justificativa | Spec |
 | --- | ----------- | ------------ | ------------- | ---- |
 | A1 | Fórmula exata de Haversine | Implementar a variante da seção 3.3 e comparar com o gabarito por igualdade exata; tolerância apenas como diagnóstico. | Reproduz 10/10 bit a bit; V8 usa `Math.sin/cos/asin` determinísticos. | 002 |
 | A2 | Mesmo par em timestamps consecutivos (dataset 3, par 28–31) | Emitir **um registro por (par, timestamp)**, sem fundir episódios. | É a regra literal do enunciado; fundir exigiria uma regra não documentada. **Confirmar com o avaliador.** | 002 |
-| A3 | Par elegível para mais de uma classificação | **Requer decisão.** Sugestão provisória: `protetiva` > `faccao` > `generico`, um único registro. | Não ocorre nos dados 1–5; a ordem por gravidade parece natural, mas não está documentada. | 002 |
+| A3 | Par elegível para mais de uma classificação | **Requer decisão na spec 002**, com base no enunciado. Nenhuma precedência é proposta. | Não ocorre nos dados 1–5; definir precedência sem respaldo seria uma regra hipotética. | 002 |
 | A4 | Pessoa com medida protetiva próxima de alguém fora da lista | Classificar como `generico`. | A relação protetiva é definida pela lista; não ocorre nos dados 1–5. | 002 |
 | A5 | Relação protetiva em um só sentido | Considerar `protetiva` se **qualquer** um dos dois listar o outro. | Encontro é simétrico; nos dados a relação é unidirecional. | 002 |
-| A6 | `medidaProtetiva` incoerente com a lista | Tratar como erro de entrada (ver spec 001). | Não ocorre; evitar adivinhar qual campo prevalece. | 001 |
-| A7 | Atributos do indivíduo mudam entre timestamps | Usar os atributos do próprio registro de cada timestamp, sem validação cruzada. | Não ocorre; validar exigiria estado por id e uma regra não documentada. | 001 |
+| A6 | `medidaProtetiva` incoerente com a lista | **Decidido (spec 001):** não validar; os campos são convertidos como estão. | O enunciado não define essa regra. | 001 |
+| A7 | Atributos do indivíduo mudam entre timestamps | **Decidido (spec 001):** usar os atributos de cada registro, sem validação cruzada. | O enunciado não define essa regra. | 001 |
 | A8 | Ordem de múltiplos encontros no mesmo timestamp | Ordenar por (menor id, maior id) dentro do timestamp. | Determinístico; nenhum exemplo contradiz. | 004 |
 | A9 | Ordem dos ids em `monitoradosEncontro` | Crescente. | Coincide com 10/10 exemplos; a alternativa não é distinguível. | 004 |
 | A10 | Formato do arquivo de saída | `JSON.stringify(lista, null, 2)`, sem quebra de linha final. | Byte a byte igual aos gabaritos. | 004 |
-| A11 | Lista de restrição com vários ids | Aceitar ids separados por vírgula. | Formato natural; não observado. | 001 |
+| A11 | Lista de restrição com vários ids | **Decidido (spec 001):** ids separados por `,`, aspas opcionais. | Formato documentado no enunciado; não observado nos dados. | 001 |
 | A12 | Fonte do enunciado | Versionar ou referenciar o enunciado original. | Permite classificar regras como [Enunciado] com rastreabilidade. | — |
 
 ## 6. Características relevantes para leitura em streaming

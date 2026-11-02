@@ -17,7 +17,7 @@ specs/
 
 | ID  | Directory                    | Status      |
 | --- | ---------------------------- | ----------- |
-| 001 | `001-dataset-processing/`    | In review   |
+| 001 | `001-dataset-processing/`    | Approved    |
 | 002 | `002-encounter-detection/`   | Not started |
 | 003 | `003-spatial-optimization/`  | Not started |
 | 004 | `004-output-validation/`     | Not started |
