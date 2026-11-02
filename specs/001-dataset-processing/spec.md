@@ -1,6 +1,6 @@
 # Spec 001 — Processamento de datasets
 
-- **Status:** Aprovada
+- **Status:** Implementada (em revisão)
 - **Documentos relacionados:** [`plan.md`](plan.md), [`tasks.md`](tasks.md),
   [`dataset-analysis.md`](dataset-analysis.md)
 

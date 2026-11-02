@@ -1,6 +1,6 @@
 # Tarefas 001 — Processamento de datasets
 
-- **Status:** Aprovadas. Nenhuma tarefa iniciada.
+- **Status:** Todas as tarefas concluídas em 2026-11-02; implementação em revisão.
 - **Spec:** [`spec.md`](spec.md) · **Plano:** [`plan.md`](plan.md)
 
 Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
@@ -9,7 +9,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T01 — Tipos e erro do domínio
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** definir `LocationRecord`, `TimestampGroup` e `DatasetError`.
 - **Arquivos:** `src/dataset/types.ts`, `src/dataset/dataset-error.ts`,
@@ -22,7 +22,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T02 — Conversão dos campos
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** validação e conversão de cada campo conforme a seção 4.2 da spec.
 - **Arquivos:** `src/dataset/parse-record.ts`, `test/dataset/parse-record.test.ts`.
@@ -43,7 +43,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T03 — `parseRecord`
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** converter uma linha completa em `LocationRecord`.
 - **Arquivos:** `src/dataset/parse-record.ts`, `test/dataset/parse-record.test.ts`.
@@ -55,7 +55,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T04 — `groupByTimestamp`
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** gerador assíncrono que valida o cabeçalho, ignora linhas vazias, agrupa
   registros consecutivos com timestamp idêntico e aplica E-06.
@@ -73,7 +73,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T05 — Contrapressão
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** demonstrar RF-04/RF-05 (CA-09).
 - **Arquivos:** `test/dataset/group-by-timestamp.test.ts`.
@@ -84,7 +84,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T06 — `readDataset`
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** adaptador de arquivo (plano, seção 4).
 - **Arquivos:** `src/dataset/read-dataset.ts`, `test/dataset/read-dataset.test.ts`.
@@ -92,12 +92,13 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
   `DatasetError` com o caminho (E-01); stream fechado no fim, em erro e em `break`.
 - **Testes:** arquivos temporários com o mesmo conteúdo em LF, CRLF, com BOM e sem `\n`
   final produzem grupos iguais (CA-05); erro reporta caminho e linha; arquivo
-  inexistente; o arquivo pode ser removido logo após um `break`.
+  inexistente; arquivo vazio. O teste de remoção do arquivo após `break` foi
+  descartado por não detectar a falha no Windows (ver plano, seção 11).
 - **Dependências:** T04.
 
 ## T07 — Fixtures oficiais
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** versionar datasets 1 e 2 e gabaritos sem modificação.
 - **Arquivos:** `test/fixtures/official/*`, `.gitattributes`.
@@ -107,7 +108,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T08 — Testes de aceitação com datasets oficiais
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** CA-01 a CA-04.
 - **Arquivos:** `test/dataset/official-datasets.test.ts`.
@@ -121,7 +122,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T09 — Medição diagnóstica
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** CA-10.
 - **Arquivos:** `scripts/measure-dataset.ts`, `package.json` (script `measure`),
@@ -133,7 +134,7 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 
 ## T10 — Revisão da documentação
 
-- [ ] Concluída
+- [x] Concluída
 
 - **Objetivo:** alinhar spec, plano, tarefas e índice com a implementação.
 - **Arquivos:** `specs/001-dataset-processing/*.md`, `specs/README.md`.

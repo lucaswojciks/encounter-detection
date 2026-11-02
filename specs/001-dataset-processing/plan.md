@@ -1,6 +1,6 @@
 # Plano técnico 001 — Processamento de datasets
 
-- **Status:** Aprovado
+- **Status:** Implementado (em revisão)
 - **Spec:** [`spec.md`](spec.md)
 
 Alternativas de desempenho são apenas candidatas. Qualquer troca depende de
@@ -177,7 +177,7 @@ timestamps idênticos, nenhum estado precisa atravessar grupos.
 | Unitário | `parseRecord`: cada campo aceito/rejeitado (CA-07) | Strings inline |
 | Unitário | `groupByTimestamp`: agrupamento, último grupo, só cabeçalho, linhas vazias, CRLF, BOM, E-02 a E-06 (CA-05, CA-06, CA-08) | Arrays de linhas |
 | Unitário | Contrapressão e encerramento da fonte (CA-09) | Fonte de linhas instrumentada |
-| Integração | `readDataset`: arquivos temporários LF/CRLF/BOM, erro com caminho e linha, arquivo inexistente, fechamento após `break` | Arquivos gerados no diretório temporário do SO |
+| Integração | `readDataset`: arquivos temporários LF/CRLF/BOM, erro com caminho e linha, arquivo vazio, arquivo inexistente | Arquivos gerados no diretório temporário do SO |
 | Aceitação | Datasets oficiais 1 e 2 (CA-01 a CA-04) | `test/fixtures/official/` |
 | Diagnóstico | Tempo, registros, grupos e memória (CA-10) | `data/` local, não versionado |
 
@@ -193,4 +193,58 @@ leitor em streaming.
 
 ### Resultados da medição
 
-Preenchido após a implementação (tarefa T09).
+Medição **diagnóstica** (não é benchmark nem limite). Executada em 2026-11-02, com
+Node.js 24.19.0, Windows 11 Pro, AMD Ryzen 5 5600X, 16 GB de RAM e SSD. Cada linha
+corresponde a um processo separado, lendo `data/` com o build de produção:
+
+```
+npm run build
+node dist/scripts/measure-dataset.js data/datasetN.txt
+node --expose-gc dist/scripts/measure-dataset.js data/datasetN.txt   # heap retido
+```
+
+O consumidor apenas conta registros e grupos, então o tempo inclui leitura, parsing,
+validação e agrupamento, sem detecção.
+
+| Dataset | Tamanho | Registros | Grupos | Maior grupo | Tempo | Registros/s | Pico de heap | RSS máximo |
+| ------- | ------: | --------: | -----: | ----------: | ----: | ----------: | -----------: | ---------: |
+| 1 | 0,2 MiB | 5 000 | 500 | 10 | 0,013 s | ≈385 mil | 5,3 MiB | 41,9 MiB |
+| 2 | 1,2 MiB | 25 000 | 1 250 | 20 | 0,037 s | ≈670 mil | 6,8 MiB | 47,1 MiB |
+| 3 | 5,0 MiB | 100 000 | 2 500 | 40 | 0,106 s | ≈945 mil | 8,8 MiB | 50,8 MiB |
+| 4 | 20,1 MiB | 400 020 | 6 667 | 60 | 0,370 s | ≈1,08 milhão | 9,8 MiB | 58,9 MiB |
+| 5 | 50,4 MiB | 1 000 000 | 12 500 | 80 | 0,880–0,895 s (3 execuções) | ≈1,12–1,14 milhão | 12,4–13,3 MiB | 59,5–60,1 MiB |
+
+Heap **retido** (amostrado após `gc()` a cada 1 000 grupos, com `--expose-gc`):
+
+| Dataset | Registros | Heap antes da leitura | Pico de heap retido |
+| ------- | --------: | --------------------: | ------------------: |
+| 3 | 100 000 | 4,5 MiB | 4,9 MiB |
+| 5 | 1 000 000 | 4,5 MiB | 5,1 MiB |
+
+Leitura dos resultados:
+
+- As contagens de registros, grupos e maior grupo são iguais às da análise
+  exploratória para os cinco datasets.
+- O heap retido praticamente não muda entre 100 mil e 1 milhão de registros. O pico de
+  heap sem coleta forçada inclui lixo ainda não coletado e por isso varia mais. Isso é
+  coerente com RP-01/RP-02: o arquivo não é mantido em memória.
+- O RSS máximo inclui o runtime do Node e os buffers do stream.
+- Os datasets 6 e 7 não estavam disponíveis localmente e não foram medidos. Uma
+  extrapolação linear do throughput não substitui a medição.
+
+## 11. Notas de implementação
+
+- `DatasetError` também expõe `reason`, o motivo sem o prefixo de localização, para
+  uso por camadas que formatam a mensagem de outra forma.
+- `parse-record.ts` exporta `HEADER` e `FIELD_NAMES`, usados pelo agrupador e pelos
+  testes. As funções de conversão de cada campo são privadas, e os testes passam por
+  `parseRecord`.
+- Os nomes de campo nas mensagens de erro são os do arquivo de entrada
+  (`idMonitorado`, `latitude` etc.), para que o usuário os localize no arquivo.
+- O `finally` de `readDataset` aguarda o evento `close` do stream, porque `destroy()`
+  libera o descritor de forma assíncrona.
+- **Teste removido:** um teste que apagava o arquivo logo após um `break`, para provar
+  que ele havia sido fechado, passava mesmo sem fechar o stream. No Windows, o libuv
+  abre arquivos com `FILE_SHARE_DELETE`. O teste foi removido para não dar falsa
+  garantia. O encerramento da fonte de linhas é coberto pelo teste de contrapressão
+  do agrupador.
