@@ -106,6 +106,9 @@ Cada tarefa termina com `npm run typecheck` e `npm test` sem falhas.
 - **Critérios de conclusão:** arquivos idênticos aos originais (hash conferido);
   marcados como `-text`.
 - **Dependências:** nenhuma.
+- **Revisão posterior:** os datasets 1 e 2 deixaram de ser versionados; só os
+  gabaritos ficam em `test/fixtures/official/`. Os testes com os datasets oficiais os
+  leem de `data/` e são ignorados quando eles não estão lá (plano, seção 10).
 
 ## T08 — Testes de aceitação com datasets oficiais
 

@@ -38,7 +38,7 @@ src/dataset/
 ├── chunk-parser.ts        # DatasetChunkParser: blocos de bytes → linhas → grupos (seção 12)
 └── read-dataset.ts        # readDataset(path) (bytes) e readDatasetLines(path) (readline, referência)
 test/dataset/              # testes unitários e de integração
-test/fixtures/official/    # datasets 1 e 2 e gabaritos oficiais (bytes originais)
+test/fixtures/official/    # gabaritos oficiais dos datasets 1 e 2 (bytes originais)
 scripts/
 ├── measure-dataset.ts     # medição diagnóstica (CA-10); --reader bytes|lines
 └── compare-readers.ts     # equivalência entre readDataset e readDatasetLines (CA-16)
@@ -186,14 +186,18 @@ timestamps idênticos, nenhum estado precisa atravessar grupos.
 | Unitário | `groupByTimestamp`: agrupamento, último grupo, só cabeçalho, linhas vazias, CRLF, BOM, E-02 a E-06 (CA-05, CA-06, CA-08) | Arrays de linhas |
 | Unitário | Contrapressão e encerramento da fonte (CA-09) | Fonte de linhas instrumentada |
 | Integração | `readDataset`: arquivos temporários LF/CRLF/BOM, erro com caminho e linha, arquivo vazio, arquivo inexistente | Arquivos gerados no diretório temporário do SO |
-| Aceitação | Datasets oficiais 1 e 2 (CA-01 a CA-04) | `test/fixtures/official/` |
+| Aceitação | Datasets oficiais 1 e 2 (CA-01 a CA-04) | `data/` local (testes ignorados se ausentes) e gabaritos em `test/fixtures/official/` |
 | Diagnóstico | Tempo, registros, grupos e memória (CA-10) | `data/` local, não versionado |
 
-**Fixtures oficiais:** `dataset1.txt`, `dataset2.txt`, `respostas1.json` e
-`respostas2.json` (≈1,5 MB) são versionados sem modificação em
-`test/fixtures/official/`, marcados como `-text` no `.gitattributes` para que o Git
-não converta as quebras de linha no checkout (`core.autocrlf`). Os datasets 3 a 7 não
-são versionados.
+**Fixtures oficiais:** `respostas1.json` e `respostas2.json` são versionados sem
+modificação em `test/fixtures/official/`, marcados como `-text` no `.gitattributes`
+para que o Git não converta as quebras de linha no checkout (`core.autocrlf`).
+Nenhum dataset é versionado. Os datasets 1 e 2 foram versionados até a revisão
+final da documentação. Desde então, os testes que dependem deles os leem de `data/`
+(ou do diretório em `ENCOUNTER_DATA_DIR`) e são ignorados quando os arquivos não
+estão lá. Assim, `npm test` não precisa de download nem de internet. Os demais testes
+usam dados construídos, incluindo um dataset sintético com um encontro de cada tipo
+(`test/sample-dataset.ts`).
 
 **Referência independente (CA-03):** o teste de aceitação lê o fixture com
 `readFileSync` + `split` e compara cada campo de cada registro com o resultado do

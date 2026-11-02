@@ -3,22 +3,22 @@ import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { after, before, describe, test } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { DatasetError } from "../src/dataset/dataset-error.js";
 import { HEADER } from "../src/dataset/parse-record.js";
 import { allPairs, type PairSearch } from "../src/encounters/pair-search.js";
 import { processDataset } from "../src/process-dataset.js";
-
-const OFFICIAL = new URL("../../test/fixtures/official/", import.meta.url);
-const official = (name: string) => fileURLToPath(new URL(name, OFFICIAL));
+import { answerPath, officialDataset, skipWithout } from "./official-data.js";
+import { SAMPLE, sampleDataset } from "./sample-dataset.js";
 
 describe("processDataset", () => {
   let directory: string;
+  let sample: string;
   let counter = 0;
 
   before(async () => {
     directory = await mkdtemp(join(tmpdir(), "encounter-process-"));
+    sample = await datasetWith([sampleDataset()]);
   });
 
   after(async () => {
@@ -33,28 +33,61 @@ describe("processDataset", () => {
     return path;
   }
 
-  test("processes dataset 1 into the official answer, with statistics", async () => {
+  test("processes the sample dataset into its planted encounters, with statistics", async () => {
     const output = outputPath();
-    const result = await processDataset({ input: official("dataset1.txt"), output });
+    const result = await processDataset({ input: sample, output });
+
+    assert.equal(result.records, SAMPLE.records);
+    assert.equal(result.timestamps, SAMPLE.timestamps);
+    assert.equal(result.encounters, SAMPLE.encounters.length);
+    assert.deepEqual(result.byType, SAMPLE.byType);
+    assert.ok(result.durationMs > 0);
+    const written = JSON.parse(await readFile(output, "utf8")) as {
+      tipo: string;
+      monitoradosEncontro: number[];
+      timestamp: string;
+    }[];
+    assert.deepEqual(
+      written.map(({ tipo, monitoradosEncontro, timestamp }) => ({ tipo, ids: monitoradosEncontro, timestamp })),
+      SAMPLE.encounters,
+    );
+  });
+
+  test("the default strategy and allPairs write the same file for the sample dataset", async () => {
+    const defaultOutput = outputPath();
+    const allPairsOutput = outputPath();
+    await processDataset({ input: sample, output: defaultOutput });
+    await processDataset({ input: sample, output: allPairsOutput, search: allPairs });
+
+    assert.equal(await readFile(defaultOutput, "utf8"), await readFile(allPairsOutput, "utf8"));
+  });
+
+  test("processes official dataset 1 into the official answer", { skip: skipWithout("dataset1.txt") }, async () => {
+    const output = outputPath();
+    const result = await processDataset({ input: officialDataset("dataset1.txt") as string, output });
 
     assert.equal(result.records, 5000);
     assert.equal(result.timestamps, 500);
     assert.equal(result.encounters, 4);
     assert.deepEqual(result.byType, { generico: 2, faccao: 1, protetiva: 1 });
-    assert.ok(result.durationMs > 0);
-    assert.equal(await readFile(output, "utf8"), await readFile(official("respostas1.json"), "utf8"));
+    assert.equal(await readFile(output, "utf8"), await readFile(answerPath("respostas1.json"), "utf8"));
   });
 
-  test("the default strategy and allPairs write the same file for dataset 2", async () => {
-    const defaultOutput = outputPath();
-    const allPairsOutput = outputPath();
-    await processDataset({ input: official("dataset2.txt"), output: defaultOutput });
-    await processDataset({ input: official("dataset2.txt"), output: allPairsOutput, search: allPairs });
+  test(
+    "the default strategy and allPairs write the official answer for dataset 2",
+    { skip: skipWithout("dataset2.txt") },
+    async () => {
+      const input = officialDataset("dataset2.txt") as string;
+      const defaultOutput = outputPath();
+      const allPairsOutput = outputPath();
+      await processDataset({ input, output: defaultOutput });
+      await processDataset({ input, output: allPairsOutput, search: allPairs });
 
-    const expected = await readFile(official("respostas2.json"), "utf8");
-    assert.equal(await readFile(defaultOutput, "utf8"), expected);
-    assert.equal(await readFile(allPairsOutput, "utf8"), expected);
-  });
+      const expected = await readFile(answerPath("respostas2.json"), "utf8");
+      assert.equal(await readFile(defaultOutput, "utf8"), expected);
+      assert.equal(await readFile(allPairsOutput, "utf8"), expected);
+    },
+  );
 
   test("uses the given strategy", async () => {
     let calls = 0;
@@ -62,8 +95,8 @@ describe("processDataset", () => {
       calls++;
       allPairs(records, visit);
     };
-    await processDataset({ input: official("dataset1.txt"), output: outputPath(), search: counting });
-    assert.equal(calls, 500);
+    await processDataset({ input: sample, output: outputPath(), search: counting });
+    assert.equal(calls, SAMPLE.timestamps);
   });
 
   test("a dataset without encounters, or with only the header, produces []", async () => {
@@ -117,7 +150,7 @@ describe("processDataset", () => {
     const before = await readdir(directory);
 
     await assert.rejects(
-      processDataset({ input: official("dataset1.txt"), output, search: abortOnThirdGroup, signal: controller.signal }),
+      processDataset({ input: sample, output, search: abortOnThirdGroup, signal: controller.signal }),
       { name: "AbortError" },
     );
     assert.equal(groups, 3);

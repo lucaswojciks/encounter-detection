@@ -1,13 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { describe, test } from "node:test";
 
 import { readDataset } from "../../src/dataset/read-dataset.js";
 import type { LocationRecord, TimestampGroup } from "../../src/dataset/types.js";
-
-// Compiled tests run from dist/test/dataset; fixtures stay in the source tree.
-const FIXTURES = new URL("../../../test/fixtures/official/", import.meta.url);
+import { ANSWERS, officialDataset, skipWithout } from "../official-data.js";
 
 interface OfficialEncounter {
   readonly timestamp: string;
@@ -85,8 +82,12 @@ async function readGroups(path: string): Promise<TimestampGroup[]> {
 }
 
 for (const expected of EXPECTATIONS) {
+  const path = officialDataset(expected.dataset);
+  if (path === undefined) {
+    describe(`official ${expected.dataset}`, { skip: skipWithout(expected.dataset) }, () => {});
+    continue;
+  }
   describe(`official ${expected.dataset}`, async () => {
-    const path = fileURLToPath(new URL(expected.dataset, FIXTURES));
     const groups = await readGroups(path);
     const records = groups.flatMap((group) => group.records);
 
@@ -122,7 +123,7 @@ for (const expected of EXPECTATIONS) {
     });
 
     test("positions in the official answers equal the parsed coordinates", () => {
-      const answers = JSON.parse(readFileSync(new URL(expected.answers, FIXTURES), "utf8")) as OfficialEncounter[];
+      const answers = JSON.parse(readFileSync(new URL(expected.answers, ANSWERS), "utf8")) as OfficialEncounter[];
       assert.ok(answers.length > 0);
 
       const byTimestamp = new Map(groups.map((group) => [group.timestamp, group]));

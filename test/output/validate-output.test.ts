@@ -1,14 +1,12 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { before, describe, test } from "node:test";
-import { fileURLToPath } from "node:url";
+import { describe, test } from "node:test";
 
 import { readDataset } from "../../src/dataset/read-dataset.js";
 import type { LocationRecord } from "../../src/dataset/types.js";
 import { haversineDistance } from "../../src/encounters/haversine.js";
 import { type DatasetLookup, validateOutput } from "../../src/output/validate-output.js";
-
-const OFFICIAL = new URL("../../../test/fixtures/official/", import.meta.url);
+import { ANSWERS, officialDataset, skipWithout } from "../official-data.js";
 
 type Encounter = {
   tipo: string;
@@ -19,29 +17,70 @@ type Encounter = {
 };
 
 function answers(name: string): Encounter[] {
-  return JSON.parse(readFileSync(new URL(name, OFFICIAL), "utf8")) as Encounter[];
+  return JSON.parse(readFileSync(new URL(name, ANSWERS), "utf8")) as Encounter[];
 }
 
-async function lookupFor(dataset: string): Promise<DatasetLookup> {
+/** Factions and restriction lists of datasets 1 and 2 (specs/001-dataset-processing/dataset-analysis.md). */
+const ATTRIBUTES = {
+  "respostas1.json": { factions: { 7: 1, 8: 1 }, restrictions: { 9: [10] } },
+  "respostas2.json": { factions: { 8: 1, 9: 1, 10: 2, 11: 2 }, restrictions: { 12: [13] } },
+} as const satisfies Record<string, { factions: Record<number, number>; restrictions: Record<number, number[]> }>;
+
+/**
+ * Dataset records at the timestamps of the official answers, rebuilt from the
+ * answer positions and the known attributes, so that the dataset checks run
+ * without the official dataset files.
+ */
+function lookupFromAnswers(name: keyof typeof ATTRIBUTES): DatasetLookup {
+  const { factions, restrictions } = ATTRIBUTES[name] as {
+    factions: Record<number, number>;
+    restrictions: Record<number, number[]>;
+  };
   const byTimestamp = new Map<string, Map<number, LocationRecord>>();
-  for await (const group of readDataset(fileURLToPath(new URL(dataset, OFFICIAL)))) {
+  for (const encounter of answers(name)) {
+    const records = byTimestamp.get(encounter.timestamp) ?? new Map<number, LocationRecord>();
+    for (const [id, { lat, lon }] of Object.entries(encounter.posicoes)) {
+      const restricted = restrictions[Number(id)] ?? [];
+      records.set(Number(id), {
+        id: Number(id),
+        faction: factions[Number(id)] ?? null,
+        timestamp: encounter.timestamp,
+        latitude: lat,
+        longitude: lon,
+        hasProtectiveMeasure: restricted.length > 0,
+        restrictedIds: restricted,
+      });
+    }
+    byTimestamp.set(encounter.timestamp, records);
+  }
+  return (timestamp) => byTimestamp.get(timestamp);
+}
+
+async function lookupFor(path: string): Promise<DatasetLookup> {
+  const byTimestamp = new Map<string, Map<number, LocationRecord>>();
+  for await (const group of readDataset(path)) {
     byTimestamp.set(group.timestamp, new Map(group.records.map((record) => [record.id, record])));
   }
   return (timestamp) => byTimestamp.get(timestamp);
 }
 
 describe("validateOutput", () => {
-  let dataset1: DatasetLookup;
+  const dataset1 = lookupFromAnswers("respostas1.json");
 
-  before(async () => {
-    dataset1 = await lookupFor("dataset1.txt");
+  test("accepts the official answers checked against the official datasets", { skip: skipWithout("dataset2.txt") || skipWithout("dataset1.txt") }, async () => {
+    for (const [name, dataset] of [
+      ["respostas1.json", "dataset1.txt"],
+      ["respostas2.json", "dataset2.txt"],
+    ] as const) {
+      const result = validateOutput(answers(name), await lookupFor(officialDataset(dataset) as string));
+      assert.deepEqual(result.errors, [], name);
+    }
   });
 
-  test("accepts the official answers, with and without the dataset", async () => {
-    const dataset2 = await lookupFor("dataset2.txt");
+  test("accepts the official answers, with and without the dataset records", () => {
     for (const [name, lookup] of [
       ["respostas1.json", dataset1],
-      ["respostas2.json", dataset2],
+      ["respostas2.json", lookupFromAnswers("respostas2.json")],
     ] as const) {
       for (const result of [validateOutput(answers(name)), validateOutput(answers(name), lookup)]) {
         assert.deepEqual(result.errors, [], name);

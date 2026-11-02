@@ -6,9 +6,15 @@ import { join } from "node:path";
 import { after, before, describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { answerPath, officialDataset, skipWithout } from "./official-data.js";
+import { SAMPLE, sampleDataset } from "./sample-dataset.js";
+
 const cliPath = fileURLToPath(new URL("../src/cli.js", import.meta.url));
-const OFFICIAL = new URL("../../test/fixtures/official/", import.meta.url);
-const official = (name: string) => fileURLToPath(new URL(name, OFFICIAL));
+const STRATEGIES = [
+  ["sweep", "latitudeSweep"],
+  ["spatial", "spatialHash"],
+  ["all", "allPairs"],
+] as const;
 const HEADER = "idMonitorado;faccaoMonitorado;timestamp;latitude;longitude;medidaProtetiva;idsRestricaoMedida";
 
 function runCli(args: readonly string[], cwd?: string) {
@@ -58,47 +64,84 @@ describe("CLI", () => {
     }
   });
 
-  test("dataset 1 with defaults: latitudeSweep, default output name, official answer", async () => {
+  test("sample dataset with defaults: latitudeSweep, default output name, planted encounters", async () => {
     const cwd = await freshDirectory();
-    const result = runCli([official("dataset1.txt")], cwd);
+    await writeFile(join(cwd, "sample.txt"), sampleDataset(), "utf8");
+    const result = runCli(["sample.txt"], cwd);
 
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stderr, "");
-    const output = join(cwd, "outputs", "encontros-dataset1.json");
-    assert.equal(await readFile(output, "utf8"), await readFile(official("respostas1.json"), "utf8"));
+    const output = JSON.parse(await readFile(join(cwd, "outputs", "encontros-sample.json"), "utf8")) as {
+      tipo: string;
+      monitoradosEncontro: number[];
+      timestamp: string;
+    }[];
+    assert.deepEqual(
+      output.map(({ tipo, monitoradosEncontro, timestamp }) => ({ tipo, ids: monitoradosEncontro, timestamp })),
+      SAMPLE.encounters,
+    );
     assert.match(result.stdout, /^Search: {5}latitudeSweep$/m);
-    assert.match(result.stdout, /^Output: {5}outputs[\\/]encontros-dataset1\.json$/m);
-    assert.match(result.stdout, /^Records: {4}5000$/m);
-    assert.match(result.stdout, /^Timestamps: 500$/m);
-    assert.match(result.stdout, /^Encounters: 4 \(generico 2, faccao 1, protetiva 1\)$/m);
+    assert.match(result.stdout, /^Output: {5}outputs[\\/]encontros-sample\.json$/m);
+    assert.match(result.stdout, new RegExp(`^Records: {4}${SAMPLE.records}$`, "m"));
+    assert.match(result.stdout, new RegExp(`^Timestamps: ${SAMPLE.timestamps}$`, "m"));
+    assert.match(result.stdout, /^Encounters: 3 \(generico 1, faccao 1, protetiva 1\)$/m);
     assert.match(result.stdout, /^Duration: {3}\d+\.\d{3} s$/m);
     assert.match(result.stdout, /^Max RSS: {4}\d+\.\d MiB$/m);
   });
 
-  test("dataset 2 with every strategy matches the official answer byte for byte", async () => {
+  test("every strategy writes the same file for the sample dataset", async () => {
     const dir = await freshDirectory();
-    const expected = await readFile(official("respostas2.json"), "utf8");
-    for (const [search, name] of [
-      ["sweep", "latitudeSweep"],
-      ["spatial", "spatialHash"],
-      ["all", "allPairs"],
-    ] as const) {
+    const input = join(dir, "sample.txt");
+    await writeFile(input, sampleDataset(), "utf8");
+    const files: string[] = [];
+    for (const [search, name] of STRATEGIES) {
       const output = join(dir, `${search}.json`);
-      const result = runCli([official("dataset2.txt"), "--search", search, "-o", output]);
+      const result = runCli([input, "--search", search, "-o", output]);
       assert.equal(result.status, 0, result.stderr);
       assert.match(result.stdout, new RegExp(`^Search: {5}${name}$`, "m"));
-      assert.match(result.stdout, /^Encounters: 6 \(generico 3, faccao 2, protetiva 1\)$/m);
-      assert.equal(await readFile(output, "utf8"), expected, search);
+      files.push(await readFile(output, "utf8"));
     }
+    assert.deepEqual(new Set(files).size, 1);
   });
+
+  test("official dataset 1 with defaults matches the official answer", { skip: skipWithout("dataset1.txt") }, async () => {
+    const cwd = await freshDirectory();
+    const result = runCli([officialDataset("dataset1.txt") as string], cwd);
+
+    assert.equal(result.status, 0, result.stderr);
+    const output = join(cwd, "outputs", "encontros-dataset1.json");
+    assert.equal(await readFile(output, "utf8"), await readFile(answerPath("respostas1.json"), "utf8"));
+    assert.match(result.stdout, /^Records: {4}5000$/m);
+    assert.match(result.stdout, /^Timestamps: 500$/m);
+    assert.match(result.stdout, /^Encounters: 4 \(generico 2, faccao 1, protetiva 1\)$/m);
+  });
+
+  test(
+    "official dataset 2 with every strategy matches the official answer byte for byte",
+    { skip: skipWithout("dataset2.txt") },
+    async () => {
+      const dir = await freshDirectory();
+      const expected = await readFile(answerPath("respostas2.json"), "utf8");
+      for (const [search, name] of STRATEGIES) {
+        const output = join(dir, `${search}.json`);
+        const result = runCli([officialDataset("dataset2.txt") as string, "--search", search, "-o", output]);
+        assert.equal(result.status, 0, result.stderr);
+        assert.match(result.stdout, new RegExp(`^Search: {5}${name}$`, "m"));
+        assert.match(result.stdout, /^Encounters: 6 \(generico 3, faccao 2, protetiva 1\)$/m);
+        assert.equal(await readFile(output, "utf8"), expected, search);
+      }
+    },
+  );
 
   test("creates the parent directory of the output", async () => {
     const dir = await freshDirectory();
+    const input = join(dir, "sample.txt");
+    await writeFile(input, sampleDataset(), "utf8");
     const output = join(dir, "nested", "deeper", "out.json");
-    const result = runCli([official("dataset1.txt"), "-o", output]);
+    const result = runCli([input, "-o", output]);
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(await readFile(output, "utf8"), await readFile(official("respostas1.json"), "utf8"));
+    assert.equal((JSON.parse(await readFile(output, "utf8")) as unknown[]).length, SAMPLE.encounters.length);
   });
 
   test("a dataset without encounters produces []", async () => {
@@ -172,13 +215,15 @@ describe("CLI", () => {
 
   test("an output path that cannot be written exits with 1", async () => {
     const dir = await freshDirectory();
+    const input = join(dir, "sample.txt");
+    await writeFile(input, sampleDataset(), "utf8");
     const output = join(dir, "is-a-directory");
     await mkdir(output);
-    const result = runCli([official("dataset1.txt"), "-o", output]);
+    const result = runCli([input, "-o", output]);
 
     assert.equal(result.status, 1);
     assert.ok(result.stderr.startsWith("error: "), result.stderr);
     assert.ok(result.stderr.includes(`${output} was not written`));
-    assert.deepEqual(await readdir(dir), ["is-a-directory"]);
+    assert.deepEqual((await readdir(dir)).sort(), ["is-a-directory", "sample.txt"]);
   });
 });
