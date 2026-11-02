@@ -59,6 +59,15 @@ describe("detectEncounters", () => {
     assert.deepEqual(outside, []);
   });
 
+  test("a distance of exactly 20 m is not an encounter", () => {
+    // Found by bisection; the formula returns exactly 20 for these points.
+    const a = record(1, { latitude: 0, longitude: -40 });
+    const b = record(2, { latitude: 0.00017986432118374611, longitude: -40 });
+    assert.equal(haversineDistance(a.latitude, a.longitude, b.latitude, b.longitude), 20);
+
+    assert.deepEqual(detectEncounters(group([a, b])), []);
+  });
+
   test("groups with fewer than two records have no encounters", () => {
     assert.deepEqual(detectEncounters(group([])), []);
     assert.deepEqual(detectEncounters(group([record(1, NEAR_A)])), []);
