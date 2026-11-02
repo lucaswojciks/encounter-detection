@@ -150,5 +150,6 @@ tmp/
 .DS_Store
 Thumbs.db
 
-# Generated encounter outputs (versioning decided by size)
-outputs/
+# Encounter outputs: only the final JSON files are versioned
+outputs/*
+!outputs/encontros-*.json

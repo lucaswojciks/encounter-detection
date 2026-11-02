@@ -3,3 +3,6 @@
 
 # Official reference data: keep bytes exactly as published
 test/fixtures/official/** -text
+
+# Encounter outputs: keep bytes exactly as generated (compared with the official answers)
+outputs/** -text
