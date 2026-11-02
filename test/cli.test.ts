@@ -16,9 +16,9 @@ test("prints usage and exits with 0 when --help is given", () => {
   assert.match(result.stdout, /^Usage: encounter-detection/);
 });
 
-test("prints usage to stderr and exits with 1 when no arguments are given", () => {
+test("reports the missing dataset and exits with 2 when no arguments are given", () => {
   const result = runCli([]);
 
-  assert.equal(result.status, 1);
-  assert.match(result.stderr, /^Usage: encounter-detection/);
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /^error: missing dataset path\n\nUsage: encounter-detection/);
 });
