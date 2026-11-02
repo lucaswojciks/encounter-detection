@@ -37,7 +37,7 @@ describe("CLI", () => {
     const result = runCli(["--help"]);
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /^Usage: encounter-detection <dataset> \[--output <file\.json>\] \[--search spatial\|all\]/);
+    assert.match(result.stdout, /^Usage: encounter-detection <dataset> \[--output <file\.json>\] \[--search sweep\|spatial\|all\]/);
     assert.equal(result.stderr, "");
   });
 
@@ -58,7 +58,7 @@ describe("CLI", () => {
     }
   });
 
-  test("dataset 1 with defaults: spatialHash, default output name, official answer", async () => {
+  test("dataset 1 with defaults: latitudeSweep, default output name, official answer", async () => {
     const cwd = await freshDirectory();
     const result = runCli([official("dataset1.txt")], cwd);
 
@@ -66,7 +66,7 @@ describe("CLI", () => {
     assert.equal(result.stderr, "");
     const output = join(cwd, "outputs", "encontros-dataset1.json");
     assert.equal(await readFile(output, "utf8"), await readFile(official("respostas1.json"), "utf8"));
-    assert.match(result.stdout, /^Search: {5}spatialHash$/m);
+    assert.match(result.stdout, /^Search: {5}latitudeSweep$/m);
     assert.match(result.stdout, /^Output: {5}outputs[\\/]encontros-dataset1\.json$/m);
     assert.match(result.stdout, /^Records: {4}5000$/m);
     assert.match(result.stdout, /^Timestamps: 500$/m);
@@ -75,10 +75,11 @@ describe("CLI", () => {
     assert.match(result.stdout, /^Max RSS: {4}\d+\.\d MiB$/m);
   });
 
-  test("dataset 2 with both strategies matches the official answer byte for byte", async () => {
+  test("dataset 2 with every strategy matches the official answer byte for byte", async () => {
     const dir = await freshDirectory();
     const expected = await readFile(official("respostas2.json"), "utf8");
     for (const [search, name] of [
+      ["sweep", "latitudeSweep"],
       ["spatial", "spatialHash"],
       ["all", "allPairs"],
     ] as const) {

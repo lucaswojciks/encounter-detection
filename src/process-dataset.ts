@@ -4,16 +4,16 @@ import { performance } from "node:perf_hooks";
 import { readDataset } from "./dataset/read-dataset.js";
 import type { TimestampGroup } from "./dataset/types.js";
 import { detectDatasetEncounters } from "./encounters/detect-stream.js";
+import { latitudeSweep } from "./encounters/latitude-sweep.js";
 import { type OutputEncounter, toOutputEncounter } from "./encounters/output.js";
 import type { PairSearch } from "./encounters/pair-search.js";
-import { spatialHash } from "./encounters/spatial-hash.js";
 import type { EncounterType } from "./encounters/types.js";
 import { writeJsonArray } from "./output/json-writer.js";
 
 export interface ProcessDatasetOptions {
   readonly input: string;
   readonly output: string;
-  /** Pair search strategy; `spatialHash` by default. */
+  /** Pair search strategy; `latitudeSweep` by default. */
   readonly search?: PairSearch;
   /** Aborting stops the processing before the next timestamp group. */
   readonly signal?: AbortSignal;
@@ -48,7 +48,7 @@ async function assertOutputIsNotInput(input: string, output: string): Promise<vo
 
 /** Reads a dataset, detects its encounters and writes them as the output JSON file. */
 export async function processDataset(options: ProcessDatasetOptions): Promise<ProcessDatasetResult> {
-  const { input, output, search = spatialHash, signal } = options;
+  const { input, output, search = latitudeSweep, signal } = options;
   const start = performance.now();
   await assertOutputIsNotInput(input, output);
   let records = 0;

@@ -1,7 +1,7 @@
 import { basename, extname, join } from "node:path";
 import { parseArgs } from "node:util";
 
-export const SEARCH_NAMES = ["spatial", "all"] as const;
+export const SEARCH_NAMES = ["sweep", "spatial", "all"] as const;
 export type SearchName = (typeof SEARCH_NAMES)[number];
 
 export type CliArguments =
@@ -43,7 +43,7 @@ export function parseArguments(argv: readonly string[]): CliArguments {
   if (positionals.length > 1) throw new UsageError(`expected one dataset path, found ${positionals.length}`);
 
   const input = positionals[0] as string;
-  const search = values.search ?? "spatial";
+  const search = values.search ?? "sweep";
   if (!isSearchName(search)) {
     throw new UsageError(`invalid --search ${JSON.stringify(search)}; expected one of: ${SEARCH_NAMES.join(", ")}`);
   }

@@ -5,12 +5,12 @@ import { describe, test } from "node:test";
 import { defaultOutputPath, parseArguments, UsageError } from "../../src/cli/arguments.js";
 
 describe("parseArguments", () => {
-  test("dataset only: default output and spatial search", () => {
+  test("dataset only: default output and latitude sweep search", () => {
     assert.deepEqual(parseArguments(["data/dataset1.txt"]), {
       kind: "run",
       input: "data/dataset1.txt",
       output: join("outputs", "encontros-dataset1.json"),
-      search: "spatial",
+      search: "sweep",
     });
   });
 
@@ -19,6 +19,7 @@ describe("parseArguments", () => {
     assert.deepEqual(parseArguments(["in.txt", "--output", "out.json", "--search", "all"]), expected);
     assert.deepEqual(parseArguments(["--search=all", "-o", "out.json", "in.txt"]), expected);
     assert.deepEqual(parseArguments(["in.txt", "--search", "spatial"]).kind, "run");
+    assert.deepEqual(parseArguments(["in.txt", "--search", "sweep"]).kind, "run");
   });
 
   test("help", () => {
@@ -31,7 +32,7 @@ describe("parseArguments", () => {
     const cases: [string[], RegExp][] = [
       [[], /missing dataset path/],
       [["a.txt", "b.txt"], /expected one dataset path, found 2/],
-      [["a.txt", "--search", "fast"], /invalid --search "fast"; expected one of: spatial, all/],
+      [["a.txt", "--search", "fast"], /invalid --search "fast"; expected one of: sweep, spatial, all/],
       [["a.txt", "--search"], /argument missing/],
       [["a.txt", "--output"], /argument missing/],
       [["a.txt", "--output="], /--output must not be empty/],

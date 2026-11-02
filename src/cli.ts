@@ -4,25 +4,28 @@ import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 
 import { parseArguments, type SearchName, UsageError } from "./cli/arguments.js";
+import { latitudeSweep } from "./encounters/latitude-sweep.js";
 import { allPairs, type PairSearch } from "./encounters/pair-search.js";
 import { spatialHash } from "./encounters/spatial-hash.js";
 import { processDataset, type ProcessDatasetResult } from "./process-dataset.js";
 
-const USAGE = `Usage: encounter-detection <dataset> [--output <file.json>] [--search spatial|all]
+const USAGE = `Usage: encounter-detection <dataset> [--output <file.json>] [--search sweep|spatial|all]
 
 Detects encounters between monitored individuals in a dataset file and writes
 them as a JSON array.
 
 Options:
   -o, --output <file>   Output JSON file (default: outputs/encontros-<dataset>.json)
-      --search <name>   Pair search: "spatial" (spatial hashing, default) or
-                        "all" (brute force over every pair, for validation)
+      --search <name>   Pair search: "sweep" (latitude sweep, default),
+                        "spatial" (spatial hashing) or "all" (brute force over
+                        every pair, for validation)
   -h, --help            Show this help
 
 Exit codes: 0 success, 1 input/processing/output error, 2 invalid arguments,
 130 interrupted.`;
 
 const STRATEGIES: Record<SearchName, { readonly name: string; readonly search: PairSearch }> = {
+  sweep: { name: "latitudeSweep", search: latitudeSweep },
   spatial: { name: "spatialHash", search: spatialHash },
   all: { name: "allPairs", search: allPairs },
 };
