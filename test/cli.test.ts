@@ -145,6 +145,20 @@ describe("CLI", () => {
     assert.deepEqual((await readdir(dir)).sort(), ["invalid.txt", "out.json"]);
   });
 
+  test("an output path that is the input dataset exits with 1 and keeps the dataset", async () => {
+    const dir = await freshDirectory();
+    const input = join(dir, "dataset.txt");
+    const content = [HEADER, '1;;"2024-01-01 00:00:00";-25.59386;-73.96319;false;'].join("\n");
+    await writeFile(input, content, "utf8");
+
+    const result = runCli(["dataset.txt", "-o", "./dataset.txt"], dir);
+
+    assert.equal(result.status, 1);
+    assert.ok(result.stderr.includes("error: output ./dataset.txt is the input dataset dataset.txt"), result.stderr);
+    assert.equal(await readFile(input, "utf8"), content);
+    assert.deepEqual(await readdir(dir), ["dataset.txt"]);
+  });
+
   test("a missing dataset exits with 1 and names the file", async () => {
     const dir = await freshDirectory();
     const input = join(dir, "missing.txt");

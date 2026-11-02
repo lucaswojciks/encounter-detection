@@ -1,3 +1,4 @@
+import { stat } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 
 import { readDataset } from "./dataset/read-dataset.js";
@@ -26,10 +27,30 @@ export interface ProcessDatasetResult {
   readonly durationMs: number;
 }
 
+/**
+ * Publishing the output replaces the file at `output`; when it is the input
+ * itself (under any spelling of the path, or a link to it), the dataset would
+ * be lost.
+ */
+async function assertOutputIsNotInput(input: string, output: string): Promise<void> {
+  const [inputStats, outputStats] = await Promise.all(
+    [input, output].map((path) => stat(path, { bigint: true }).catch(() => undefined)),
+  );
+  if (
+    inputStats !== undefined &&
+    outputStats !== undefined &&
+    inputStats.dev === outputStats.dev &&
+    inputStats.ino === outputStats.ino
+  ) {
+    throw new Error(`output ${output} is the input dataset ${input}; choose another output path`);
+  }
+}
+
 /** Reads a dataset, detects its encounters and writes them as the output JSON file. */
 export async function processDataset(options: ProcessDatasetOptions): Promise<ProcessDatasetResult> {
   const { input, output, search = spatialHash, signal } = options;
   const start = performance.now();
+  await assertOutputIsNotInput(input, output);
   let records = 0;
   let timestamps = 0;
   const byType: Record<EncounterType, number> = { generico: 0, faccao: 0, protetiva: 0 };

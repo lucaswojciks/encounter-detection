@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { after, before, describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -91,6 +91,19 @@ describe("processDataset", () => {
       return true;
     });
     assert.deepEqual(await readdir(directory), before);
+  });
+
+  test("refuses an output path that is the input dataset, keeping the dataset intact", async () => {
+    const content = [HEADER, '1;;"2024-01-01 00:00:00";-25.59386;-73.96319;false;'].join("\n");
+    const input = await datasetWith(content.split("\n"));
+    const sameFile = join(directory, ".", basename(input));
+
+    for (const output of [input, sameFile]) {
+      await assert.rejects(processDataset({ input, output }), {
+        message: `output ${output} is the input dataset ${input}; choose another output path`,
+      });
+      assert.equal(await readFile(input, "utf8"), content);
+    }
   });
 
   test("aborting stops before the next group and leaves no output file", async () => {
