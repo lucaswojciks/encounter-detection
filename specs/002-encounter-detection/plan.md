@@ -198,7 +198,7 @@ Decisões:
   por construção.
 - **Distância exata sempre valida o candidato.** Uma estratégia de busca só pode
   **reduzir** os candidatos. A decisão de encontro é sempre da fórmula exata
-  (CLAUDE.md: validar candidatos espaciais com a distância exata).
+  (spec 003, RS-05: candidatos espaciais são sempre validados pela distância exata).
 - **Deduplicação só sobre encontros.** O `Set` recebe uma chave apenas quando a
   distância está abaixo do limiar, então fica vazio na maioria dos grupos. Ele garante
   R-08 quando a spec 001 entrega ids repetidos, e também quando uma estratégia da

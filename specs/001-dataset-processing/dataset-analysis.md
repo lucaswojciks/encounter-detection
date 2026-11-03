@@ -1,8 +1,8 @@
-# Análise exploratória dos datasets e engenharia reversa dos gabaritos
+# Análise dos datasets oficiais e validação dos gabaritos
 
 Documento complementar da especificação `001-dataset-processing`. Registra o que foi
 **observado** nos dados oficiais e separa explicitamente essas observações das
-**decisões propostas**, que dependem de revisão técnica.
+**decisões propostas**, que foram revisadas e decididas nas especificações 001 a 004.
 
 ## 1. Escopo e método
 
@@ -22,7 +22,8 @@ Documento complementar da especificação `001-dataset-processing`. Registra o q
 
 Os datasets 3, 4 e 5 não possuem gabarito, mas foram analisados integralmente por
 serem pequenos e permitirem verificar se as características dos dois primeiros se
-mantêm. Os datasets 6 e 7 não foram baixados (restrição da etapa).
+mantêm. Os datasets 6 e 7 não foram baixados nesta análise inicial (restrição da etapa).
+Depois, foram processados integralmente na spec 004.
 
 ### 1.2 Método
 
@@ -34,9 +35,15 @@ mantêm. Os datasets 6 e 7 não foram baixados (restrição da etapa).
 
 ### 1.3 Fonte das regras
 
-As regras de negócio citadas como "enunciado" são as registradas nas instruções do
-projeto (`CLAUDE.md` e instruções da tarefa). **O documento original do desafio não
-está no repositório**; recomenda-se adicioná-lo ou referenciá-lo para auditoria.
+As regras de negócio citadas como "enunciado" são as do desafio técnico:
+- comparação apenas de posições com timestamp idêntico;
+- fórmula de Haversine com raio de 6 371 000 m;
+- encontro com distância estritamente menor que 20 m;
+- tipos `generico`, `faccao` e `protetiva`;
+- um registro por par e timestamp;
+- estrutura do JSON de saída.
+
+Elas estão consolidadas nas especificações 001 e 002.
 
 Legenda das classificações usadas nas conclusões:
 
@@ -125,7 +132,7 @@ Observado em todos os datasets 1–5 (e nas amostras de 6 e 7):
 - Coordenadas: latitude em [−33,75; 5,27], longitude em [−73,99; −34,79]
   (aproximadamente o território brasileiro). Nenhuma fora dos intervalos válidos.
 
-## 3. Observações: engenharia reversa dos gabaritos
+## 3. Observações: análise e validação dos gabaritos
 
 ### 3.1 Estrutura do gabarito
 
@@ -245,9 +252,9 @@ próxima de terceiros) ocorre abaixo de 20 m.
 | 4.9c | Ordem das chaves de `posicoes` | Não informativa: `JSON.stringify` ordena chaves inteiras de forma crescente. | — |
 | 4.10 | Precisão numérica | Distâncias são `double` serializados por `JSON.stringify`; reprodução exata exige a variante da seção 3.3. Posições são o `Number` do texto de entrada. | **[Exemplos]** |
 
-## 5. Decisões propostas e ambiguidades pendentes
+## 5. Decisões propostas e ambiguidades identificadas
 
-As decisões abaixo **não são observações**. As marcadas como **Decidido** foram aprovadas na revisão da spec 001. As demais pertencem às specs 002 e 004 e serão decididas nelas, seguindo a diretriz de implementar apenas regras do enunciado confirmadas pelos gabaritos, sem precedências ou restrições hipotéticas.
+As decisões abaixo **não são observações**. As marcadas como **Decidido** foram aprovadas na revisão da spec 001. As demais foram decididas nas specs 002 e 004, seguindo a diretriz de implementar apenas regras do enunciado confirmadas pelos gabaritos, sem precedências ou restrições hipotéticas. A tabela registra a recomendação feita durante a análise. A decisão final de cada item está na spec indicada.
 
 | ID  | Ambiguidade | Recomendação | Justificativa | Spec |
 | --- | ----------- | ------------ | ------------- | ---- |
@@ -262,8 +269,6 @@ As decisões abaixo **não são observações**. As marcadas como **Decidido** f
 | A9 | Ordem dos ids em `monitoradosEncontro` | Crescente. | Coincide com 10/10 exemplos; a alternativa não é distinguível. | 004 |
 | A10 | Formato do arquivo de saída | `JSON.stringify(lista, null, 2)`, sem quebra de linha final. | Byte a byte igual aos gabaritos. | 004 |
 | A11 | Lista de restrição com vários ids | **Decidido (spec 001):** ids separados por `,`, aspas opcionais. | Formato documentado no enunciado; não observado nos dados. | 001 |
-| A12 | Fonte do enunciado | Versionar ou referenciar o enunciado original. | Permite classificar regras como [Enunciado] com rastreabilidade. | — |
-
 ## 6. Características relevantes para leitura em streaming
 
 - Os registros já chegam agrupados e ordenados por timestamp, então um único passe

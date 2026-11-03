@@ -137,7 +137,7 @@ ficam em `data/`, ignorado pelo Git.
 | `test/output/json-writer.test.ts` | CA-03, CA-04 (temporário cresce com `flushBytes` pequeno; destino ausente até o fim), falha do iterável (CA-06), destino preexistente intacto, destino inválido (CA-07) |
 | `test/cli/arguments.test.ts` | CA-01: combinações de argumentos, padrões e erros de uso |
 | `test/process-dataset.test.ts` | Estatísticas, estratégia padrão, interrupção por `AbortSignal`, dataset só com cabeçalho → `[]` (CA-05) |
-| `test/cli.test.ts` | CLI compilada via `spawnSync`: códigos de saída, mensagens, saída padrão, gabaritos byte a byte com as duas estratégias (CA-02, CA-08), dataset inválido sem output (CA-06), nome padrão do output |
+| `test/cli.test.ts` | CLI compilada via `spawnSync`: códigos de saída, mensagens, saída padrão, gabaritos byte a byte com as três estratégias quando os datasets 1 e 2 estão em `data/`, e um dataset sintético nos demais casos (CA-02, CA-08), dataset inválido sem output (CA-06), nome padrão do output |
 | `test/output/validate-output.test.ts` | CA-09: o validador aceita os gabaritos e rejeita cada violação |
 
 Para que seja testável, a lógica do validador fica em `src/output/validate-output.ts`

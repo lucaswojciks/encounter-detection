@@ -404,8 +404,8 @@ busca):
 
 Mesmas condições da spec 001, plano, seção 12.6: Node.js 24.19.0, Windows 11 Pro,
 AMD Ryzen 5 5600X; 5 rodadas alternadas; um processo por medição. **Anterior** é
-`spatialHash` no build da `main` (`3a521f6`). **Otimizada** é `latitudeSweep` nesta
-branch. É só o tempo de `detectEncounters` (soma por grupo), sem leitura:
+`spatialHash` no build da versão anterior (commit `3a521f6`). **Otimizada** é
+`latitudeSweep`, hoje integrada à `main`. É só o tempo de `detectEncounters` (soma por grupo), sem leitura:
 
 ```
 node dist/scripts/measure-encounters.js --search spatial|sweep data/datasetN.txt

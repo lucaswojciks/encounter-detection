@@ -379,8 +379,9 @@ leitura):
 
 Executado em 2026-11-02 com Node.js 24.19.0, Windows 11 Pro, AMD Ryzen 5 5600X,
 16 GB de RAM e SSD, com os arquivos já no cache do sistema operacional. **Anterior**
-é o build da `main` (`3a521f6`, leitura com `readline`), compilado num worktree
-temporário. **Otimizada** é o build desta branch. São 5 rodadas, cada medição num
+é o build da versão anterior (commit `3a521f6`, leitura com `readline`), compilado
+num worktree temporário. **Otimizada** é o build com o leitor por bytes, hoje
+integrado à `main`. São 5 rodadas, cada medição num
 processo separado, alternando a ordem das versões a cada rodada:
 
 ```
